@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETTY - Glosario 4 Pilares</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-content">
+                <a href="/pilares" class="back-button">← Volver a 4 Pilares</a>
+                <h1>📖 Glosario de Términos - 4 Pilares</h1>
+            </div>
+        </header>
+
+        <!-- Glosario -->
+        <div class="section glosario-container">
+            
+            <div class="glosario-category">
+                <h2>💰 Pilar 1: Cash Management</h2>
+                
+                <div class="glosario-item">
+                    <h3>1. Runway (Meses de Vida)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Caja Actual / Burn Rate Mensual</p>
+                    <p><strong>Significado:</strong> Indica cuántos meses puede sobrevivir tu startup con el efectivo actual, manteniendo el ritmo de gasto actual.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li class="danger">< 3 meses: Situación crítica - Necesitas financiación urgente</li>
+                        <li class="warning">3-6 meses: Zona de riesgo - Empieza conversaciones con inversores</li>
+                        <li class="success">6-12 meses: Zona cómoda - Tiempo para crecer</li>
+                        <li>> 12 meses: Excelente posición financiera</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>2. Burn Rate (Tasa de Quema)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> (Ingresos Mensuales - Gastos Mensuales) promedio</p>
+                    <p><strong>Significado:</strong> Cantidad de dinero que tu startup "quema" o gasta cada mes. Si es negativo, estás gastando más de lo que ingresas.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>Negativo: Estás quemando efectivo (normal en startups early-stage)</li>
+                        <li>0: Break-even (ingresos = gastos)</li>
+                        <li>Positivo: Generas más efectivo del que gastas (cash-flow positivo)</li>
+                    </ul>
+                    <p><strong>Ejemplo:</strong> Si gastas 15,000€ al mes y solo generas 5,000€, tu burn rate es -10,000€/mes.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>3. Proyección de Caja</h3>
+                    <p><strong>Significado:</strong> Estimación de cuánto efectivo tendrás en los próximos 12 meses, basándose en tu burn rate actual.</p>
+                    <p><strong>Utilidad:</strong> Te permite anticipar cuándo te quedarás sin efectivo y planificar rondas de inversión con tiempo.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>4. Caja Actual</h3>
+                    <p><strong>Significado:</strong> Efectivo disponible ahora mismo: dinero en banco + efectivo + inversiones líquidas < 90 días.</p>
+                    <p><strong>No incluye:</strong> Cuentas por cobrar, inventario, o activos no líquidos.</p>
+                </div>
+            </div>
+
+            <div class="glosario-category">
+                <h2>⚡ Pilar 2: Eficiencia</h2>
+                
+                <div class="glosario-item">
+                    <h3>5. Margen de Contribución</h3>
+                    <p class="formula"><strong>Fórmula:</strong> ((Ingresos - Comisiones - Costos Variables) / Ingresos) × 100</p>
+                    <p><strong>Significado:</strong> Porcentaje de cada venta que queda después de pagar los costos directos. Es lo que "contribuye" a cubrir costos fijos.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li class="danger">< 30%: Margen muy bajo - Difícil ser rentable</li>
+                        <li class="warning">30-50%: Margen aceptable</li>
+                        <li class="success">50-70%: Buen margen</li>
+                        <li>> 70%: Excelente margen (típico de SaaS)</li>
+                    </ul>
+                    <p><strong>Ejemplo:</strong> Vendes por 100€, pagas 20€ de comisiones y 30€ de costos variables. Tu margen es 50%.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>6. CAC - Customer Acquisition Cost</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Total Gastos Marketing / Número de Nuevos Clientes</p>
+                    <p><strong>Significado:</strong> Cuánto te cuesta adquirir un nuevo cliente. Incluye publicidad, comisiones de venta, eventos, etc.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>Debe ser < Lifetime Value (LTV) del cliente</li>
+                        <li>Ratio ideal LTV/CAC: 3:1 o mayor</li>
+                        <li>Si CAC > valor primera compra, necesitas retención alta</li>
+                    </ul>
+                    <p><strong>Ejemplo:</strong> Gastas 5,000€ en marketing y consigues 50 clientes nuevos. Tu CAC es 100€/cliente.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>7. ROI por Canal</h3>
+                    <p class="formula"><strong>Fórmula:</strong> ((Ingresos del Canal - Costos del Canal) / Costos del Canal) × 100</p>
+                    <p><strong>Significado:</strong> Retorno de inversión de cada canal de venta (Instagram, Web, Tienda física, etc.).</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 0%: Estás perdiendo dinero en ese canal</li>
+                        <li>0-100%: Recuperas la inversión pero con bajo retorno</li>
+                        <li>> 200%: Canal muy rentable - Escálalo</li>
+                    </ul>
+                    <p><strong>Ejemplo:</strong> Inviertes 1,000€ en Facebook Ads y generas 3,000€ en ventas. ROI = 200%.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>8. Ingreso Promedio por Venta</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Total Ingresos / Número de Transacciones</p>
+                    <p><strong>Significado:</strong> Ticket promedio de cada venta. Te ayuda a entender el valor típico de tus clientes.</p>
+                    <p><strong>Utilidad:</strong> Comparar con CAC para saber si tu modelo es viable. Si CAC > Ingreso promedio, necesitas vender más a cada cliente.</p>
+                </div>
+            </div>
+
+            <div class="glosario-category">
+                <h2>📈 Pilar 3: Crecimiento</h2>
+                
+                <div class="glosario-item">
+                    <h3>9. MoM Growth (Month-over-Month)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> ((Ventas Mes Actual - Ventas Mes Anterior) / Ventas Mes Anterior) × 100</p>
+                    <p><strong>Significado:</strong> Tasa de crecimiento mensual de tus ventas. Muestra si estás creciendo o decreciendo.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 0%: Decrecimiento (alarma roja)</li>
+                        <li>0-5%: Crecimiento lento</li>
+                        <li>5-15%: Crecimiento moderado</li>
+                        <li>> 15%: Alto crecimiento</li>
+                        <li>> 30%: Crecimiento explosivo</li>
+                    </ul>
+                    <p><strong>Ejemplo:</strong> Vendiste 10,000€ en enero y 12,000€ en febrero. Tu MoM es +20%.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>10. Tendencia de Ventas</h3>
+                    <p><strong>Significado:</strong> Dirección general de tus ventas en el tiempo. Puede ser creciente, decreciente o estable.</p>
+                    <p><strong>Utilidad:</strong> Identificar si tu producto/servicio está ganando tracción o perdiendo interés del mercado.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>11. Ventas por Categoría/Sector</h3>
+                    <p><strong>Significado:</strong> Desglose de tus ingresos por tipo de producto o línea de negocio.</p>
+                    <p><strong>Utilidad:</strong> Identificar qué productos generan más ingresos para enfocar esfuerzos de marketing y desarrollo.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>12. Ventas por Canal</h3>
+                    <p><strong>Significado:</strong> Desglose de ventas según el canal de adquisición (Instagram, Web, Email, etc.).</p>
+                    <p><strong>Utilidad:</strong> Combinar con ROI por canal para decidir dónde invertir más recursos.</p>
+                </div>
+            </div>
+
+            <div class="glosario-category">
+                <h2>💸 Pilar 4: OpEx (Gastos Operativos)</h2>
+                
+                <div class="glosario-item">
+                    <h3>13. OpEx - Operating Expenses</h3>
+                    <p><strong>Significado:</strong> Todos los gastos necesarios para operar tu negocio (excluyendo costos directos de producción).</p>
+                    <p><strong>Incluye:</strong></p>
+                    <ul>
+                        <li>Nóminas del equipo</li>
+                        <li>Alquiler de oficina</li>
+                        <li>Software y herramientas</li>
+                        <li>Marketing y publicidad</li>
+                        <li>Servicios profesionales</li>
+                        <li>Suministros y mantenimiento</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>14. Gastos Fijos vs Variables</h3>
+                    <p><strong>Gastos Fijos (F):</strong> No cambian mes a mes. Ejemplo: alquiler, nóminas, suscripciones.</p>
+                    <p><strong>Gastos Variables (V):</strong> Varían según la actividad. Ejemplo: publicidad, comisiones, envíos.</p>
+                    <p><strong>Importancia:</strong> Los fijos son predecibles pero difíciles de reducir. Los variables puedes ajustar rápidamente si necesitas reducir burn rate.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>15. Gastos por Categoría</h3>
+                    <p><strong>Significado:</strong> Desglose de tus gastos por tipo (Personal, Marketing, Software, etc.).</p>
+                    <p><strong>Utilidad:</strong> Identificar dónde se va tu dinero y qué áreas puedes optimizar.</p>
+                    <p><strong>Benchmarks típicos para startups:</strong></p>
+                    <ul>
+                        <li>Personal: 40-60% del OpEx</li>
+                        <li>Marketing: 15-30% del OpEx</li>
+                        <li>Software/Infraestructura: 10-20% del OpEx</li>
+                        <li>Oficina/Admin: 5-10% del OpEx</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>16. Promedio de Gastos Mensual</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Total Gastos / Número de Meses</p>
+                    <p><strong>Significado:</strong> Cuánto gastas en promedio cada mes. Útil para presupuestos y proyecciones.</p>
+                    <p><strong>Utilidad:</strong> Comparar con meses individuales para identificar gastos atípicos o spikes.</p>
+                </div>
+            </div>
+
+            <div class="glosario-category">
+                <h2>🎯 Conceptos Generales</h2>
+                
+                <div class="glosario-item">
+                    <h3>17. Break-Even Point</h3>
+                    <p><strong>Significado:</strong> Punto donde tus ingresos igualan tus gastos. No pierdes ni ganas dinero.</p>
+                    <p><strong>Importancia:</strong> Alcanzar el break-even significa que eres sostenible sin inversión externa.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>18. Cash-Flow Positivo</h3>
+                    <p><strong>Significado:</strong> Cuando generas más efectivo del que gastas cada mes (Burn Rate positivo).</p>
+                    <p><strong>Importancia:</strong> Indica que puedes crecer sin necesidad de levantar capital constantemente.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>19. Unit Economics</h3>
+                    <p><strong>Significado:</strong> Economía a nivel de unidad individual (un cliente, una venta, un producto).</p>
+                    <p><strong>Incluye:</strong> CAC, LTV, Margen de Contribución por unidad.</p>
+                    <p><strong>Regla de oro:</strong> Si tus unit economics no funcionan, escalar solo amplifica las pérdidas.</p>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>20. LTV - Lifetime Value</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Ingreso Promedio × Número de Compras × Tiempo como Cliente</p>
+                    <p><strong>Significado:</strong> Valor total que un cliente genera durante toda su relación con tu empresa.</p>
+                    <p><strong>Regla:</strong> LTV debe ser al menos 3x el CAC para un modelo saludable.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

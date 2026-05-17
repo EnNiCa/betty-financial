@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETTY - Business Evaluator Tool & Treasury Yield</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 4.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: 8px;
+        }
+
+        .header .subtitle {
+            font-size: 1.1em;
+            opacity: 0.95;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+
+        .betty-meaning {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        }
+
+        .betty-letter {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .betty-letter .letter {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .betty-letter .word {
+            font-size: 0.9em;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .betty-separator {
+            font-size: 2em;
+            opacity: 0.5;
+            margin: 0 5px;
+        }
+
+        .tagline {
+            font-size: 1.2em;
+            opacity: 0.95;
+            font-style: italic;
+            margin-top: 15px;
+        }
+
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.9;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .mode-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        }
+
+        .mode-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .mode-card h2 {
+            color: #1e3c72;
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .mode-card p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .mode-features {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+
+        .mode-features li {
+            padding: 8px 0;
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .mode-features li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .mode-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .mode-card:hover .mode-button {
+            background: linear-gradient(135deg, #2a5298 0%, #3b6fc5 100%);
+            transform: scale(1.05);
+        }
+
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .badge.new {
+            background: #ef4444;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 3em;
+                letter-spacing: 5px;
+            }
+
+            .header .subtitle {
+                font-size: 0.85em;
+            }
+
+            .betty-meaning {
+                gap: 10px;
+            }
+
+            .betty-letter .letter {
+                font-size: 2em;
+            }
+
+            .betty-letter .word {
+                font-size: 0.75em;
+            }
+
+            .betty-separator {
+                font-size: 1.5em;
+            }
+
+            .tagline {
+                font-size: 1em;
+            }
+
+            .mode-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .mode-card {
+                padding: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💼 BETTY</h1>
+            <p class="subtitle">Business Evaluator Tool & Treasury Yield</p>
+            
+            <div class="betty-meaning">
+                <div class="betty-letter">
+                    <div class="letter">B</div>
+                    <div class="word">Business</div>
+                </div>
+                <span class="betty-separator">•</span>
+                <div class="betty-letter">
+                    <div class="letter">E</div>
+                    <div class="word">Evaluator</div>
+                </div>
+                <span class="betty-separator">•</span>
+                <div class="betty-letter">
+                    <div class="letter">T</div>
+                    <div class="word">Tool</div>
+                </div>
+                <span class="betty-separator">•</span>
+                <div class="betty-letter">
+                    <div class="letter">T</div>
+                    <div class="word">Treasury</div>
+                </div>
+                <span class="betty-separator">•</span>
+                <div class="betty-letter">
+                    <div class="letter">Y</div>
+                    <div class="word">Yield</div>
+                </div>
+            </div>
+            
+            <p class="tagline">✨ Tu asistente financiera inteligente</p>
+        </div>
+
+        <div class="mode-selector">
+            <!-- Modo Ratios Tradicionales -->
+            <a href="/ratios" class="mode-card">
+                <span class="badge">Clásico</span>
+                <div class="mode-icon">📈</div>
+                <h2>Ratios Financieros</h2>
+                <p>Análisis tradicional completo para empresas establecidas con datos históricos de balance y cuenta de resultados.</p>
+                
+                <ul class="mode-features">
+                    <li>11 ratios financieros clave</li>
+                    <li>Análisis por sector (8 sectores)</li>
+                    <li>Nombres parametrizables</li>
+                    <li>Gráficos con colores diferenciados</li>
+                    <li>Análisis histórico multi-año</li>
+                    <li>Comparativas con benchmarks</li>
+                </ul>
+
+                <div class="mode-button">Acceder a Ratios →</div>
+            </a>
+
+            <!-- Modo 4 Pilares Startups -->
+            <a href="/pilares" class="mode-card">
+                <span class="badge new">NUEVO</span>
+                <div class="mode-icon">🚀</div>
+                <h2>4 Pilares Startups</h2>
+                <p>Dashboard especializado para startups con métricas de caja, eficiencia, crecimiento y operaciones.</p>
+                
+                <ul class="mode-features">
+                    <li>💰 Cash Management (Runway + Burn Rate)</li>
+                    <li>📈 Eficiencia (Margen Contribución + ROI)</li>
+                    <li>🚀 Crecimiento (MoM Growth)</li>
+                    <li>💼 OpEx (Gastos por categoría)</li>
+                    <li>Proyecciones interactivas</li>
+                    <li>Análisis de canales de venta</li>
+                </ul>
+
+                <div class="mode-button">Acceder a Pilares →</div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

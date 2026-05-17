@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETTY - Ratios Financieros</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header con navegación -->
+        <header class="main-header">
+            <div class="header-content">
+                <a href="/" class="back-button">← Inicio</a>
+                <h1>📈 Ratios Financieros</h1>
+                <div class="header-actions">
+                    <a href="{{ url_for('static', filename='plantillas/PLANTILLA_Ratios_Financieros.xlsx') }}" download class="btn-download">📥 Descargar Plantilla</a>
+                    <a href="/glosario" class="btn-link">📖 Glosario</a>
+                    <button id="btnConfigurarNombres" class="btn-secondary">⚙️ Configurar Nombres</button>
+                    <a href="/pilares" class="btn-link">🚀 Ir a 4 Pilares</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sección de Upload -->
+        <div class="upload-section">
+            <div class="upload-container">
+                <!-- Selector de Sector -->
+                <div class="sector-selector-box">
+                    <h3>🏢 Selecciona el Sector</h3>
+                    <p class="sector-description">El análisis se ajustará según los estándares del sector</p>
+                    
+                    <div class="sector-grid">
+                        <label class="sector-option">
+                            <input type="radio" name="sector" value="tecnologia" checked>
+                            <div class="sector-card">
+                                <span class="sector-icon">💻</span>
+                                <span class="sector-name">Tecnología</span>
+                            </div>
+                        </label>
+                        
+                        <label class="sector-option">
+                            <input type="radio" name="sector" value="retail">
+                            <div class="sector-card">
+                                <span class="sector-icon">🛒</span>
+                                <span class="sector-name">Retail</span>
+                            </div>
+                        </label>
+                        
+                        <label class="sector-option">
+                            <input type="radio" name="sector" value="servicios">
+                            <div class="sector-card">
+                                <span class="sector-icon">🤝</span>
+                                <span class="sector-name">Servicios</span>
+                            </div>
+                        </label>
+                        
+                        <label class="sector-option">
+                            <input type="radio" name="sector" value="otros">
+                            <div class="sector-card">
+                                <span class="sector-icon">📊</span>
+                                <span class="sector-name">Otros</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Upload Box -->
+                <div class="upload-box" id="uploadBox">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                    <div class="upload-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>Arrastra tu Excel de Balance y P&L aquí</p>
+                        <small>Formatos: .xlsx, .xls (máx. 16MB)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Procesando datos y calculando ratios...</p>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard" style="display: none;">
+            
+            <!-- Resumen Ejecutivo -->
+            <div class="section">
+                <h2>📊 Resumen Ejecutivo</h2>
+                <div class="kpi-grid" id="kpiGrid"></div>
+            </div>
+
+            <!-- Ratios de Endeudamiento -->
+            <div class="section">
+                <h2>💰 Ratios de Endeudamiento</h2>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Nivel de Endeudamiento (%)</h3>
+                        <div id="chartEndeudamiento"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Solvencia Total</h3>
+                        <div id="chartSolvencia"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ratios de Rentabilidad -->
+            <div class="section">
+                <h2>📈 Ratios de Rentabilidad</h2>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>ROA y ROE (%)</h3>
+                        <div id="chartRentabilidad"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Márgenes sobre Ventas (%)</h3>
+                        <div id="chartMargenes"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ratios de Liquidez -->
+            <div class="section">
+                <h2>💧 Ratios de Liquidez</h2>
+                <div class="charts-grid">
+                    <div class="chart-container full-width">
+                        <h3>Solvencia Corriente</h3>
+                        <div id="chartLiquidez"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apalancamiento Financiero -->
+            <div class="section">
+                <h2>⚖️ Apalancamiento Financiero</h2>
+                <div class="charts-grid">
+                    <div class="chart-container full-width">
+                        <h3>Nivel de Apalancamiento</h3>
+                        <p class="chart-description">Muestra la relación entre deuda y fondos propios. Apalancamiento = Fondos Ajenos / Fondos Propios</p>
+                        <div id="chartBalance"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Ratios -->
+            <div class="section">
+                <h2>📋 Tabla Completa de Ratios</h2>
+                <div class="table-container">
+                    <table id="ratiosTable">
+                        <thead></thead>
+                        <tbody id="ratiosTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Análisis -->
+            <div class="section">
+                <h2>💡 Análisis y Recomendaciones</h2>
+                <div id="analisisContent" class="analysis-content"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal de Configuración de Nombres -->
+    <div id="modalNombres" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Configurar Nombres de Conceptos</h2>
+                <button class="modal-close" onclick="cerrarModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Personaliza los nombres que la aplicación buscará en tu Excel:</p>
+                <div id="nombresConfig" class="nombres-grid"></div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="cerrarModal()" class="btn-secondary">Cancelar</button>
+                <button onclick="guardarNombres()" class="btn-primary">Guardar Configuración</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/ratios.js') }}"></script>
+</body>
+</html>

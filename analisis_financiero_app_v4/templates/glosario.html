@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETTY - Glosario de Ratios</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-content">
+                <a href="/ratios" class="back-button">← Volver a Ratios</a>
+                <h1>📖 Glosario de Ratios Financieros</h1>
+            </div>
+        </header>
+
+        <!-- Glosario -->
+        <div class="section glosario-container">
+            
+            <div class="glosario-category">
+                <h2>💰 Ratios de Endeudamiento</h2>
+                
+                <div class="glosario-item">
+                    <h3>1. Nivel de Endeudamiento (%)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> (Pasivo NC + Pasivo C) / Total Activo × 100</p>
+                    <p><strong>Significado:</strong> Indica qué porcentaje del activo total está financiado con deuda (recursos ajenos).</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 50%: Nivel de endeudamiento bajo (la empresa se financia más con recursos propios)</li>
+                        <li>50-70%: Nivel moderado</li>
+                        <li>> 70%: Alto endeudamiento (mayor riesgo financiero)</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>2. Ratio Endeudamiento Total</h3>
+                    <p class="formula"><strong>Fórmula:</strong> (Pasivo NC + Pasivo C) / Fondos Propios × 100</p>
+                    <p><strong>Significado:</strong> Compara la deuda total con los fondos propios. Muestra cuántos euros de deuda hay por cada euro de patrimonio.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 100%: Más fondos propios que deuda</li>
+                        <li>= 100%: Deuda igual a fondos propios</li>
+                        <li>> 100%: Más deuda que fondos propios</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>3. Solvencia Total</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Total Activo / (Pasivo NC + Pasivo C)</p>
+                    <p><strong>Significado:</strong> Mide la capacidad de la empresa para hacer frente a todas sus deudas con todos sus activos.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 1: La empresa no puede cubrir sus deudas con sus activos (situación crítica)</li>
+                        <li>= 1: Punto de equilibrio</li>
+                        <li>> 1.5: Buena solvencia</li>
+                        <li>> 2: Solvencia excelente</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>4. Apalancamiento Financiero</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Fondos Ajenos / Fondos Propios</p>
+                    <p><strong>Significado:</strong> Mide cuántos euros de deuda hay por cada euro de patrimonio propio.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 0.5: Bajo apalancamiento (estructura conservadora)</li>
+                        <li>0.5-1.5: Apalancamiento moderado</li>
+                        <li>> 1.5: Alto apalancamiento (mayor riesgo pero potencial mayor rentabilidad)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="glosario-category">
+                <h2>📈 Ratios de Rentabilidad</h2>
+                
+                <div class="glosario-item">
+                    <h3>5. ROA - Return on Assets (%)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> EBIT / Total Activo × 100</p>
+                    <p><strong>Significado:</strong> Mide la rentabilidad de los activos. Indica cuánto beneficio genera cada euro invertido en activos.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 5%: Rentabilidad baja</li>
+                        <li>5-10%: Rentabilidad aceptable</li>
+                        <li>> 10%: Buena rentabilidad</li>
+                        <li>> 15%: Excelente rentabilidad</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>6. ROE - Return on Equity (%)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Resultado del Ejercicio / Fondos Propios × 100</p>
+                    <p><strong>Significado:</strong> Mide la rentabilidad para los accionistas. Indica cuánto beneficio se genera por cada euro de capital propio invertido.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 10%: Rentabilidad baja para el accionista</li>
+                        <li>10-15%: Rentabilidad aceptable</li>
+                        <li>> 15%: Buena rentabilidad</li>
+                        <li>> 20%: Excelente rentabilidad</li>
+                    </ul>
+                    <p><strong>Relación ROE vs ROA:</strong></p>
+                    <ul>
+                        <li>ROE > ROA: El apalancamiento (deuda) está generando rentabilidad adicional</li>
+                        <li>ROE < ROA: El coste de la deuda está reduciendo la rentabilidad para el accionista</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>7. Ratio de Madurez (%)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Activo No Corriente / Total Activo × 100</p>
+                    <p><strong>Significado:</strong> Indica el porcentaje de activos a largo plazo (inmovilizado) sobre el total de activos.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 30%: Empresa comercial o de servicios (poco inmovilizado)</li>
+                        <li>30-60%: Estructura equilibrada</li>
+                        <li>> 60%: Empresa industrial (mucho inmovilizado)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="glosario-category">
+                <h2>💧 Ratios de Liquidez</h2>
+                
+                <div class="glosario-item">
+                    <h3>8. Solvencia Corriente (Ratio de Liquidez)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Activo Corriente / Pasivo Corriente</p>
+                    <p><strong>Significado:</strong> Mide la capacidad de la empresa para pagar sus deudas a corto plazo con sus activos líquidos.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li class="danger">< 1: Riesgo de liquidez (no puede pagar deudas a corto plazo)</li>
+                        <li class="warning">1-1.5: Zona ajustada (liquidez justa)</li>
+                        <li class="success">> 1.5: Zona cómoda (buena liquidez)</li>
+                        <li>> 2: Excelente liquidez</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>9. Disponibilidad Inmediata (Test Ácido)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Tesorería / Pasivo Corriente</p>
+                    <p><strong>Significado:</strong> Mide la capacidad de pagar deudas inmediatas solo con el efectivo disponible.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 0.2: Muy dependiente de cobros</li>
+                        <li>0.2-0.5: Nivel normal</li>
+                        <li>> 0.5: Buena disponibilidad de efectivo</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="glosario-category">
+                <h2>📊 Márgenes sobre Ventas</h2>
+                
+                <div class="glosario-item">
+                    <h3>10. EBITDA / Ventas (%)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> EBITDA / Cifra de Ventas × 100</p>
+                    <p><strong>Significado:</strong> Margen operativo antes de amortizaciones, intereses e impuestos. Mide la rentabilidad operativa pura.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 10%: Margen bajo</li>
+                        <li>10-20%: Margen aceptable</li>
+                        <li>> 20%: Buen margen</li>
+                        <li>> 30%: Excelente margen operativo</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>11. BAIT / Ventas (%)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> EBIT / Cifra de Ventas × 100</p>
+                    <p><strong>Significado:</strong> Margen operativo después de amortizaciones pero antes de intereses e impuestos.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 5%: Margen bajo</li>
+                        <li>5-15%: Margen aceptable</li>
+                        <li>> 15%: Buen margen</li>
+                    </ul>
+                </div>
+
+                <div class="glosario-item">
+                    <h3>12. Resultado / Ventas (%)</h3>
+                    <p class="formula"><strong>Fórmula:</strong> Resultado del Ejercicio / Cifra de Ventas × 100</p>
+                    <p><strong>Significado:</strong> Margen neto final. Indica qué porcentaje de las ventas se convierte en beneficio final.</p>
+                    <p><strong>Interpretación:</strong></p>
+                    <ul>
+                        <li>< 3%: Margen muy ajustado</li>
+                        <li>3-8%: Margen aceptable</li>
+                        <li>> 8%: Buen margen neto</li>
+                        <li>> 15%: Excelente margen neto</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

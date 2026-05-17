@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETTY - Proyección de Caja</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-content">
+                <a href="/" class="back-button">← Inicio</a>
+                <h1>🔮 Proyección de Caja (12 meses)</h1>
+                <div class="header-actions">
+                    <a href="/pilares" class="btn-action btn-navigate">
+                        <span class="btn-icon">🚀</span>
+                        <span class="btn-text">4 Pilares</span>
+                    </a>
+                    <button id="btnExportarPDF" class="btn-action btn-pdf" style="display:none;">
+                        <span class="btn-icon">🖨️</span>
+                        <span class="btn-text">Exportar PDF</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Mensaje si no hay datos -->
+        <div id="sinDatos" class="section" style="text-align: center; padding: 60px 20px;">
+            <h2>⚠️ No hay datos cargados</h2>
+            <p>Primero debes analizar tus transacciones en la pestaña <strong>4 Pilares</strong>.</p>
+            <a href="/pilares" class="btn-action btn-navigate" style="margin-top: 20px;">
+                <span class="btn-icon">🚀</span>
+                <span class="btn-text">Ir a 4 Pilares</span>
+            </a>
+        </div>
+
+        <!-- Formulario de Proyección -->
+        <div id="formularioProyeccion" class="section" style="display: none;">
+            
+            <!-- Datos Actuales (Auto-cargados) -->
+            <div class="datos-actuales">
+                <h2>📊 Datos Actuales</h2>
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-label">Caja Disponible</span>
+                        <span class="kpi-value" id="cajaActual">-</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Ventas Último Mes</span>
+                        <span class="kpi-value" id="ventasUltimo">-</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Gastos Último Mes</span>
+                        <span class="kpi-value" id="gastosUltimo">-</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Churn Rate</span>
+                        <span class="kpi-value" id="churnRate">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proyección de Ingresos -->
+            <div class="section">
+                <h2>💰 Proyección de Ingresos</h2>
+                <p class="section-subtitle">Selecciona un método para proyectar tus ingresos:</p>
+                
+                <div class="metodos-container">
+                    <!-- Método 1: Porcentaje -->
+                    <label class="metodo-card">
+                        <input type="radio" name="metodo_ingresos" value="porcentaje" checked>
+                        <div class="metodo-content">
+                            <h3>📈 Crecimiento Porcentual</h3>
+                            <p>Incremento/reducción mensual sobre ventas</p>
+                            <div class="metodo-inputs">
+                                <div class="input-group">
+                                    <label>% Mensual:</label>
+                                    <input type="number" id="incremento_ventas" placeholder="5" step="0.1">
+                                    <span class="input-hint">(Ej: 5 para +5%, -3 para -3%)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Método 2: Funnel Web -->
+                    <label class="metodo-card">
+                        <input type="radio" name="metodo_ingresos" value="funnel">
+                        <div class="metodo-content">
+                            <h3>🌐 Funnel Web</h3>
+                            <p>Basado en tráfico y conversión</p>
+                            <div class="metodo-inputs">
+                                <div class="input-group">
+                                    <label>Visitas Web/mes:</label>
+                                    <input type="number" id="visitas_web" placeholder="1000">
+                                </div>
+                                <div class="input-group">
+                                    <label>Tasa de Conversión (%):</label>
+                                    <input type="number" id="tasa_conversion" placeholder="2.5" step="0.1">
+                                </div>
+                                <div class="input-group">
+                                    <label>Ticket Medio (€):</label>
+                                    <input type="number" id="ticket_medio" placeholder="100" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Método 3: Equipo Comercial -->
+                    <label class="metodo-card">
+                        <input type="radio" name="metodo_ingresos" value="comerciales">
+                        <div class="metodo-content">
+                            <h3>👥 Equipo Comercial</h3>
+                            <p>Basado en rendimiento de ventas</p>
+                            <div class="metodo-inputs">
+                                <div class="input-group">
+                                    <label>Nº Comerciales:</label>
+                                    <input type="number" id="num_comerciales" placeholder="5">
+                                </div>
+                                <div class="input-group">
+                                    <label>Ventas/comercial/mes:</label>
+                                    <input type="number" id="ventas_comercial" placeholder="10">
+                                </div>
+                                <div class="input-group">
+                                    <label>Ticket Medio (€):</label>
+                                    <input type="number" id="ticket_medio_com" placeholder="100" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Proyección de Gastos -->
+            <div class="section">
+                <h2>💸 Proyección de Gastos</h2>
+                <p class="section-subtitle">Define cómo evolucionarán tus gastos:</p>
+                
+                <div class="gastos-container">
+                    <div class="input-group-large">
+                        <label>Incremento/Reducción Mensual (%):</label>
+                        <input type="number" id="incremento_gastos" placeholder="0" step="0.1">
+                        <span class="input-hint">Ejemplo: 2 para incremento 2% mensual, -5 para reducción 5%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón Calcular -->
+            <div class="action-section">
+                <button onclick="calcularProyeccion()" class="btn-calcular">
+                    <span class="btn-icon">🔮</span>
+                    <span class="btn-text">Calcular Proyección 12 Meses</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Resultados de Proyección -->
+        <div id="resultadosProyeccion" class="section" style="display: none;">
+            <h2>📊 Resultados de Proyección</h2>
+            
+            <!-- KPIs Proyectados -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <span class="kpi-label">Tipo de Escenario</span>
+                    <span class="kpi-value" id="tipoEscenario">-</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label" id="labelMetrica">Runway Proyectado</span>
+                    <span class="kpi-value" id="valorMetrica">-</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Net Burn Rate Proyectado</span>
+                    <span class="kpi-value" id="netBurnProyectado">-</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Gross Burn Rate Proyectado</span>
+                    <span class="kpi-value" id="grossBurnProyectado">-</span>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="charts-grid">
+                <div class="chart-container full-width">
+                    <h3>Proyección de Caja (12 meses)</h3>
+                    <div id="chartProyeccionCaja"></div>
+                </div>
+
+                <div class="chart-container full-width">
+                    <h3>Ingresos y Gastos Proyectados</h3>
+                    <div id="chartIngresosGastos"></div>
+                </div>
+
+                <div class="chart-container full-width">
+                    <h3>Burn Rates Proyectados</h3>
+                    <div id="chartBurnRates"></div>
+                </div>
+            </div>
+
+            <!-- Botón volver a calcular -->
+            <div class="action-section">
+                <button onclick="volverFormulario()" class="btn-action btn-config">
+                    <span class="btn-icon">🔄</span>
+                    <span class="btn-text">Modificar Parámetros</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/proyeccion.js') }}"></script>
+</body>
+</html>
