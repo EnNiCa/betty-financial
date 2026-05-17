@@ -177,7 +177,7 @@ function mostrarPilares(data) {
                 { name: 'Caja', type: 'line', data: cm.combinado_mensual.map(m => m.caja) }
             ],
             chart: { height: 350, type: 'line', stacked: false },
-            colors: [paletas.variada[2], paletas.calor[3], paletas.calor[0]],
+            colors: ['#10b981', '#ef4444', '#1e40af'],  // Verde ingresos, Rojo gastos, Turquesa caja
             stroke: { width: [0, 0, 3], curve: 'smooth' },
             plotOptions: {
                 bar: {
