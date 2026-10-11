@@ -34,23 +34,9 @@ let eficienciaActual = null;
 let vistaEficienciaActual = null; // null = ROI por Subcanal; si no, {metrica, unidad}
 const chartInstanceEficiencia = { instancia: null };
 
-// Restaurar datos al cargar la página
+// Al recargar la página siempre se parte en limpio, lista para un nuevo archivo
 window.addEventListener('DOMContentLoaded', function() {
-    const datosGuardados = sessionStorage.getItem('datosPilares');
-    if (datosGuardados) {
-        try {
-            const data = JSON.parse(datosGuardados);
-            mostrarPilares(data);
-            dashboard.style.display = 'block';
-            
-            // Mostrar botón exportar PDF
-            const btnPDF = document.getElementById('btnExportarPDF');
-            if (btnPDF) btnPDF.style.display = 'inline-flex';
-        } catch(e) {
-            console.error('Error al restaurar datos:', e);
-            sessionStorage.removeItem('datosPilares');
-        }
-    }
+    sessionStorage.removeItem('datosPilares');
 });
 
 if (uploadBox) {

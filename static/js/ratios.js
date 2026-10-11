@@ -47,24 +47,9 @@ const definicionesRatios = {
     }
 };
  
-// Restaurar datos al cargar la página
+// Al recargar la página siempre se parte en limpio, lista para un nuevo archivo
 window.addEventListener('DOMContentLoaded', function() {
-    const datosGuardados = sessionStorage.getItem('datosRatios');
-    if (datosGuardados) {
-        try {
-            const data = JSON.parse(datosGuardados);
-            datosGlobales = data;
-            coloresGlobales = data.colores;
-            sectorActual = data.sector || 'general';
-            mostrarDashboard(data);
-            dashboard.style.display = 'block';
-            btnExportarPDF.style.display = 'inline-flex';
-            btnExportarExcel.style.display = 'inline-flex';
-        } catch(e) {
-            console.error('Error al restaurar datos:', e);
-            sessionStorage.removeItem('datosRatios');
-        }
-    }
+    sessionStorage.removeItem('datosRatios');
 });
  
 // Event Listeners
