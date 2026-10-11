@@ -60,6 +60,18 @@ NOMBRES_DEFAULT = {
 }
 
 # ============================================================================
+# COMERCIALIZADORAS (config. por el usuario: tarifas, comisiones y descomisión)
+# ============================================================================
+# Cada tarifa: {comercializadora, tarifa, comision, descomision: [{periodo, porcentaje}, ...]}
+# Placas solares / alarmas no tienen descomisión: {comercializadora, tarifa, comision}
+COMERCIALIZADORAS_DEFAULT = {
+    'energia': {'luz': [], 'gas': []},
+    'telefonia': [],
+    'placas_solares': [],
+    'alarmas': [],
+}
+
+# ============================================================================
 # UMBRALES POR SECTOR
 # ============================================================================
 
@@ -73,7 +85,7 @@ UMBRALES_SECTORES = {
         'solvencia_corriente': {'bajo': 1.5, 'alto': 2.5},
         'ebitda_ventas': {'bajo': 20, 'alto': 35},
         'ratio_madurez': {'bajo': 20, 'alto': 40},
-        'runway_meses': {'bajo': 12, 'alto': 18},  # Startups tech
+        'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         'margen_contribucion': {'bajo': 70, 'alto': 85},
     },
     'retail': {
@@ -85,7 +97,7 @@ UMBRALES_SECTORES = {
         'solvencia_corriente': {'bajo': 1.2, 'alto': 2.0},
         'ebitda_ventas': {'bajo': 6, 'alto': 12},
         'ratio_madurez': {'bajo': 30, 'alto': 50},
-        'runway_meses': {'bajo': 6, 'alto': 12},
+        'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         'margen_contribucion': {'bajo': 35, 'alto': 50},
     },
     'servicios': {
@@ -97,7 +109,7 @@ UMBRALES_SECTORES = {
         'solvencia_corriente': {'bajo': 1.3, 'alto': 2.2},
         'ebitda_ventas': {'bajo': 12, 'alto': 22},
         'ratio_madurez': {'bajo': 15, 'alto': 35},
-        'runway_meses': {'bajo': 9, 'alto': 15},
+        'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         'margen_contribucion': {'bajo': 60, 'alto': 75},
     },
     'otros': {
@@ -109,7 +121,7 @@ UMBRALES_SECTORES = {
         'solvencia_corriente': {'bajo': 1.0, 'alto': 2.0},
         'ebitda_ventas': {'bajo': 10, 'alto': 20},
         'ratio_madurez': {'bajo': 30, 'alto': 50},
-        'runway_meses': {'bajo': 6, 'alto': 12},
+        'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         'margen_contribucion': {'bajo': 50, 'alto': 70},
     }
 }
@@ -191,24 +203,40 @@ def obtener_años_y_offset(df):
 
 def encontrar_fila_por_nombre(df, concepto_clave, nombres_personalizados=None, fila_inicio=0):
     """
-    Busca una fila usando nombres personalizados o predeterminados
+    Busca una fila usando nombres personalizados o predeterminados.
+
+    Se hace en dos pasadas: primero se busca una coincidencia EXACTA (toda la celda,
+    no solo una parte) y solo si no aparece ninguna se cae al criterio anterior de
+    subcadena. Esto evita que una cabecera de sección sin datos (p. ej. "ACTIVO" o
+    "PATRIMONIO NETO Y PASIVO") se confunda con la partida real ("Activo Corriente",
+    "Fondos Propios") solo porque alguna de las variantes de búsqueda es una abreviatura
+    corta ("AC") o un texto ("Patrimonio Neto") que resulta ser subcadena de esa cabecera
+    — la cabecera aparece antes en el Excel y, sin esta prioridad, "ganaba" el match aun
+    estando vacía, dejando ROE/Apalancamiento/Solvencia Corriente sin poder calcularse.
     """
     # Usar nombres personalizados si están disponibles
     if nombres_personalizados and concepto_clave in nombres_personalizados:
         variantes = [nombres_personalizados[concepto_clave]]
     else:
         variantes = NOMBRES_DEFAULT.get(concepto_clave, [])
-    
+
+    variantes_lower = [v.lower().strip() for v in variantes]
+
+    # 1ª pasada: coincidencia exacta de toda la celda.
     for idx in range(fila_inicio, len(df)):
         cell_value = str(df.iloc[idx, 0]).lower().strip() if pd.notna(df.iloc[idx, 0]) else ""
-        
+        if cell_value and cell_value in variantes_lower:
+            return idx
+
+    # 2ª pasada (fallback): coincidencia por subcadena, como antes.
+    for idx in range(fila_inicio, len(df)):
+        cell_value = str(df.iloc[idx, 0]).lower().strip() if pd.notna(df.iloc[idx, 0]) else ""
         if not cell_value:
             continue
-        
-        for variante in variantes:
-            if variante.lower() in cell_value:
+        for variante in variantes_lower:
+            if variante in cell_value:
                 return idx
-    
+
     return None
 
 def extraer_datos_automaticamente(df, nombres_personalizados=None):
@@ -274,6 +302,20 @@ def guardar_nombres():
     nombres = request.json.get('nombres', {})
     session['nombres_personalizados'] = nombres
     return jsonify({'success': True, 'mensaje': 'Nombres guardados correctamente'})
+
+@app.route('/api/configurar-comercializadoras', methods=['GET'])
+def get_configuracion_comercializadoras():
+    """Devuelve la configuración de comercializadoras/tarifas/descomisión actual"""
+    return jsonify({
+        'comercializadoras': session.get('comercializadoras', COMERCIALIZADORAS_DEFAULT)
+    })
+
+@app.route('/api/guardar-comercializadoras', methods=['POST'])
+def guardar_comercializadoras():
+    """Guarda la configuración de comercializadoras/tarifas/descomisión"""
+    comercializadoras = request.json.get('comercializadoras', COMERCIALIZADORAS_DEFAULT)
+    session['comercializadoras'] = comercializadoras
+    return jsonify({'success': True, 'mensaje': 'Comercializadoras guardadas correctamente'})
 
 @app.route('/upload-ratios', methods=['POST'])
 def upload_ratios():
@@ -416,7 +458,8 @@ def upload_pilares():
                 'umbrales': umbrales,
                 'colores': COLORES,
                 'paletas': PALETAS,
-                'hoja_usada': hoja_encontrada
+                'hoja_usada': hoja_encontrada,
+                'comercializadoras': session.get('comercializadoras', COMERCIALIZADORAS_DEFAULT)
             })
             
         except Exception as e:

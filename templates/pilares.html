@@ -27,6 +27,10 @@
                         <span class="btn-icon">📖</span>
                         <span class="btn-text">Glosario</span>
                     </a>
+                    <button id="btnConfigComercializadoras" class="btn-action btn-config">
+                        <span class="btn-icon">⚙️</span>
+                        <span class="btn-text">Comercializadoras</span>
+                    </button>
                     <button id="btnExportarPDF" class="btn-action btn-pdf" style="display:none;">
                         <span class="btn-icon">🖨️</span>
                         <span class="btn-text">Exportar PDF</span>
@@ -109,7 +113,7 @@
                     
                     <div class="pilar-metrics">
                         <div class="metric-large">
-                            <span class="metric-label">Runway</span>
+                            <span class="metric-label" id="runwayLabel">Runway</span>
                             <span class="metric-value" id="runwayMeses">-</span>
                             <span class="metric-unit">meses</span>
                         </div>
@@ -121,15 +125,27 @@
                                 <span class="metric-unit">€</span>
                             </div>
                             <div class="metric-small">
-                                <span class="metric-label">Burn Rate</span>
+                                <span class="metric-label">Gross Burn (promedio)</span>
+                                <span class="metric-value" id="grossBurnPromedio">-</span>
+                                <span class="metric-unit">€/mes</span>
+                            </div>
+                        </div>
+                        <div class="metric-row">
+                            <div class="metric-small">
+                                <span class="metric-label">Net Burn (promedio)</span>
                                 <span class="metric-value" id="burnRate">-</span>
+                                <span class="metric-unit">€/mes</span>
+                            </div>
+                            <div class="metric-small">
+                                <span class="metric-label">Net Burn (último mes)</span>
+                                <span class="metric-value" id="netBurnUltimoMes">-</span>
                                 <span class="metric-unit">€/mes</span>
                             </div>
                         </div>
                     </div>
                     
                     <div class="pilar-chart">
-                        <h4>Proyección de Caja (12 meses)</h4>
+                        <h4>Net Burn Rate vs Gross Burn Rate (por mes)</h4>
                         <div id="chartProyeccionCaja"></div>
                     </div>
                 </div>
@@ -144,26 +160,51 @@
                     <div class="pilar-metrics">
                         <div class="metric-large">
                             <span class="metric-label">Margen Contribución</span>
-                            <span class="metric-value" id="margenContribucion">-</span>
+                            <span class="metric-value metrica-clicable" id="margenContribucion" data-metrica="margen_contribucion" data-unidad="%" title="Click para ver por sector">-</span>
                             <span class="metric-unit">%</span>
                         </div>
-                        
+                        <p class="metric-comentario" id="margenContribucionComentario"></p>
+
                         <div class="metric-row">
                             <div class="metric-small">
                                 <span class="metric-label">CAC</span>
-                                <span class="metric-value" id="cac">-</span>
+                                <span class="metric-value metrica-clicable" id="cac" data-metrica="cac" data-unidad="€" title="Click para ver por sector">-</span>
                                 <span class="metric-unit">€</span>
                             </div>
                             <div class="metric-small">
-                                <span class="metric-label">Ingreso/Venta</span>
+                                <span class="metric-label">Churn Rate</span>
                                 <span class="metric-value" id="ingresoVenta">-</span>
+                                <span class="metric-unit"></span>
+                            </div>
+                        </div>
+                        <div class="metric-row">
+                            <div class="metric-small">
+                                <span class="metric-label">Ingreso Medio/Cliente</span>
+                                <span class="metric-value metrica-clicable" id="ingresoMedioCliente" data-metrica="ingreso_medio_cliente" data-unidad="€" title="Click para ver por sector">-</span>
+                                <span class="metric-unit">€</span>
+                            </div>
+                            <div class="metric-small">
+                                <span class="metric-label">LTV</span>
+                                <span class="metric-value metrica-clicable" id="ltvValor" data-metrica="ltv" data-unidad="€" title="Click para ver por sector">-</span>
                                 <span class="metric-unit">€</span>
                             </div>
                         </div>
+                        <p class="hint-metricas-clicables">💡 Click en Margen, CAC, Ingreso Medio o LTV para verlo por sector (Energía, Telefonía, Placas Solares, Alarmas)</p>
                     </div>
-                    
+
                     <div class="pilar-chart">
-                        <h4>ROI por Canal</h4>
+                        <div class="chart-header-jerarquico">
+                            <h4 id="tituloChartEficiencia">ROI por Subcanal</h4>
+                            <button id="btnVolverEficiencia" class="btn-volver-jerarquico" style="display:none;">← Volver</button>
+                        </div>
+                        <div class="filtro-campo filtro-sector-roi" id="filtroSectorROIContenedor">
+                            <label>Sector</label>
+                            <select id="filtroSectorROI"><option value="">Todos</option></select>
+                        </div>
+                        <div class="toggle-granularidad" id="toggleVistaEficiencia" style="display:none;">
+                            <button class="toggle-btn active" data-modo="sector">Por Sector</button>
+                            <button class="toggle-btn" data-modo="mes">Por Mes</button>
+                        </div>
                         <div id="chartROICanal"></div>
                     </div>
                 </div>
@@ -189,7 +230,13 @@
                     </div>
                     
                     <div class="pilar-chart">
-                        <h4>Evolución Mensual de Ventas</h4>
+                        <div class="chart-header-jerarquico">
+                            <h4 id="tituloChartCrecimiento">Evolución Mensual de Ventas</h4>
+                            <div class="toggle-granularidad" data-target="crecimiento">
+                                <button class="toggle-btn active" data-modo="mensual">Mensual</button>
+                                <button class="toggle-btn" data-modo="diario">Diario</button>
+                            </div>
+                        </div>
                         <div id="chartCrecimiento"></div>
                     </div>
                 </div>
@@ -216,7 +263,13 @@
                     </div>
                     
                     <div class="pilar-chart">
-                        <h4>Gastos por Categoría</h4>
+                        <div class="chart-header-jerarquico">
+                            <h4 id="tituloChartOpEx">Gastos por Categoría</h4>
+                            <div class="toggle-granularidad" data-target="opex">
+                                <button class="toggle-btn active" data-modo="mensual">Mensual</button>
+                                <button class="toggle-btn" data-modo="diario">Diario</button>
+                            </div>
+                        </div>
                         <div id="chartOpEx"></div>
                     </div>
                 </div>
@@ -226,25 +279,113 @@
             <!-- Sección de Gráficos Detallados -->
             <div class="section">
                 <h2>📊 Análisis Detallado</h2>
-                
+
                 <div class="charts-grid">
                     <div class="chart-container full-width">
-                        <h3>Net Burn Rate vs Gross Burn Rate</h3>
-                        <div id="chartBurnRates"></div>
-                        <p class="chart-analysis">El Net Burn Rate muestra el consumo real de caja (ingresos - gastos). El Gross Burn Rate muestra el total de gastos mensuales.</p>
-                    </div>
-                    
-                    <div class="chart-container full-width">
-                        <h3>Ingresos, Gastos y Evolución de Caja</h3>
+                        <div class="chart-header-jerarquico">
+                            <h3 id="tituloChartCombinado">Ingresos, Gastos y Evolución de Caja</h3>
+                            <div class="chart-header-controles">
+                                <div class="toggle-granularidad" data-target="combinado">
+                                    <button class="toggle-btn active" data-modo="mensual">Mensual</button>
+                                    <button class="toggle-btn" data-modo="diario">Diario</button>
+                                </div>
+                                <button id="btnToggleProyectado" class="btn-proyectado">PROYECTADO</button>
+                            </div>
+                        </div>
                         <div id="chartCombinado"></div>
-                        <p class="chart-analysis">Gráfico combinado que muestra la relación entre ingresos, gastos y la evolución de la caja disponible mes a mes.</p>
+                        <div id="mensajeVentasPorCobrar" class="mensaje-ventas-cobrar" style="display:none;"></div>
+                        <p class="chart-analysis">Ingresos y Caja Efectiva consideran solo lo ya COBRADO. Activa "PROYECTADO" para ver, además, los ingresos y la caja incluyendo ventas PENDIENTES de liquidar, ubicadas en su fecha de liquidación.</p>
                     </div>
-                    
+
+                    <!-- Ventas por Sector: gráfico único con filtros + drill-down por comercializadora/tarifa -->
                     <div class="chart-container full-width">
-                        <h3>Ventas por Sector y Total Mensual</h3>
+                        <div class="chart-header-jerarquico">
+                            <h3>Ventas por Sector y Total Mensual <span id="breadcrumbVentas" class="breadcrumb-jerarquico"></span></h3>
+                            <button id="btnVolverVentas" class="btn-volver-jerarquico" style="display:none;" onclick="volverNivelJerarquico('ventas')">← Volver</button>
+                        </div>
+
+                        <div class="filtros-detalle">
+                            <div class="filtro-campo">
+                                <label>Año</label>
+                                <select id="filtroAnioVentas"><option value="">Todos</option></select>
+                            </div>
+                            <div class="filtro-campo">
+                                <label>Mes</label>
+                                <select id="filtroMesVentas"><option value="">Todos</option></select>
+                            </div>
+                            <div class="filtro-campo">
+                                <label>Desde</label>
+                                <input type="date" id="filtroDiaDesdeVentas">
+                            </div>
+                            <div class="filtro-campo">
+                                <label>Hasta</label>
+                                <input type="date" id="filtroDiaHastaVentas">
+                            </div>
+                            <div class="filtro-campo">
+                                <label>Comercializadora</label>
+                                <select id="filtroComercializadoraVentas"><option value="">Todas</option></select>
+                            </div>
+                            <div class="filtro-campo">
+                                <label>Luz/Gas</label>
+                                <select id="filtroTipoEnergiaVentas"><option value="">Todos</option></select>
+                            </div>
+                            <div class="filtro-campo">
+                                <label>Tarifa/Paquete</label>
+                                <select id="filtroTarifaVentas"><option value="">Todas</option></select>
+                            </div>
+                            <button id="btnLimpiarFiltrosVentas" class="btn-secondary">Limpiar filtros</button>
+                        </div>
+
                         <div id="chartVentasSector"></div>
-                        <p class="chart-analysis">Distribución de ventas por sector con la línea de total mostrando la evolución general del negocio.</p>
+                        <p class="chart-analysis">Haz click en una barra para ver el desglose (sector → comercializadora → luz/gas). Pasa el ratón sobre el último nivel para ver el desglose por tarifa.</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Bajas por Comercializadora: gráfico independiente, con sus propios filtros -->
+            <div class="section">
+                <h2>🔻 Bajas por Comercializadora</h2>
+
+                <div class="chart-container full-width">
+                    <div class="chart-header-jerarquico">
+                        <h3>Total de Bajas <span id="breadcrumbBajas" class="breadcrumb-jerarquico"></span></h3>
+                        <button id="btnVolverBajas" class="btn-volver-jerarquico" style="display:none;" onclick="volverNivelJerarquico('bajas')">← Volver</button>
+                    </div>
+
+                    <div class="filtros-detalle">
+                        <div class="filtro-campo">
+                            <label>Año</label>
+                            <select id="filtroAnioBajas"><option value="">Todos</option></select>
+                        </div>
+                        <div class="filtro-campo">
+                            <label>Mes</label>
+                            <select id="filtroMesBajas"><option value="">Todos</option></select>
+                        </div>
+                        <div class="filtro-campo">
+                            <label>Desde</label>
+                            <input type="date" id="filtroDiaDesdeBajas">
+                        </div>
+                        <div class="filtro-campo">
+                            <label>Hasta</label>
+                            <input type="date" id="filtroDiaHastaBajas">
+                        </div>
+                        <div class="filtro-campo">
+                            <label>Comercializadora</label>
+                            <select id="filtroComercializadoraBajas"><option value="">Todas</option></select>
+                        </div>
+                        <div class="filtro-campo">
+                            <label>Luz/Gas</label>
+                            <select id="filtroTipoEnergiaBajas"><option value="">Todos</option></select>
+                        </div>
+                        <div class="filtro-campo">
+                            <label>Tarifa/Paquete</label>
+                            <select id="filtroTarifaBajas"><option value="">Todas</option></select>
+                        </div>
+                        <button id="btnLimpiarFiltrosBajas" class="btn-secondary">Limpiar filtros</button>
+                    </div>
+
+                    <div id="chartTotalBajasJerarquico"></div>
+                    <p class="chart-analysis">% de bajas de cada grupo (bajas / ventas de ese mismo grupo, no del total), agrupado por mes. Haz click en una barra para ver el desglose (sector → comercializadora → luz/gas). Pasa el ratón sobre el último nivel para ver el % de bajas por tarifa. Usa "Desde"/"Hasta" para acotar la fecha de baja a un rango de días concreto.</p>
                 </div>
             </div>
 
@@ -254,6 +395,79 @@
                 <div id="alertasContent" class="alertas-content"></div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Modal de Configuración de Comercializadoras -->
+    <div id="modalComercializadoras" class="modal" style="display: none;">
+        <div class="modal-content modal-wide">
+            <div class="modal-header">
+                <h2>⚙️ Comercializadoras, Tarifas y Descomisión</h2>
+                <button class="modal-close" onclick="cerrarModalComercializadoras()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Configura las comercializadoras y tarifas de cada sector. La Liquidación (días) indica cuántos días después de la fecha de activación se cobra la comisión; se usa para ubicar las ventas pendientes en el mes/día correcto de la Caja Proyectada. En Energía y Telefonía puedes definir además, por tarifa, uno o varios tramos de descomisión (período + porcentaje).</p>
+
+                <div class="tabs-comercializadoras">
+                    <button class="tab-btn active" data-tab="energia" onclick="cambiarTabComercializadoras('energia')">⚡ Energía</button>
+                    <button class="tab-btn" data-tab="telefonia" onclick="cambiarTabComercializadoras('telefonia')">📱 Telefonía</button>
+                    <button class="tab-btn" data-tab="placas_solares" onclick="cambiarTabComercializadoras('placas_solares')">☀️ Placas Solares</button>
+                    <button class="tab-btn" data-tab="alarmas" onclick="cambiarTabComercializadoras('alarmas')">🔒 Alarmas</button>
+                </div>
+
+                <!-- ENERGÍA (Luz / Gas) -->
+                <div class="tab-panel" id="tabPanel-energia">
+                    <div class="subtabs-energia">
+                        <button class="subtab-btn active" data-subtab="luz" onclick="cambiarSubtabEnergia('luz')">💡 Luz</button>
+                        <button class="subtab-btn" data-subtab="gas" onclick="cambiarSubtabEnergia('gas')">🔥 Gas</button>
+                    </div>
+                    <div class="subtab-panel" id="subtabPanel-luz">
+                        <table class="tabla-comercializadoras">
+                            <thead><tr><th>Comercializadora</th><th>Tarifa</th><th>Comisión (€)</th><th>Liquidación (días)</th><th>Descomisión</th><th></th></tr></thead>
+                            <tbody id="tbodyEnergiaLuz"></tbody>
+                        </table>
+                        <button class="btn-add-row" onclick="añadirFilaTarifa('energia.luz')">+ Añadir tarifa de Luz</button>
+                    </div>
+                    <div class="subtab-panel" id="subtabPanel-gas" style="display:none;">
+                        <table class="tabla-comercializadoras">
+                            <thead><tr><th>Comercializadora</th><th>Tarifa</th><th>Comisión (€)</th><th>Liquidación (días)</th><th>Descomisión</th><th></th></tr></thead>
+                            <tbody id="tbodyEnergiaGas"></tbody>
+                        </table>
+                        <button class="btn-add-row" onclick="añadirFilaTarifa('energia.gas')">+ Añadir tarifa de Gas</button>
+                    </div>
+                </div>
+
+                <!-- TELEFONÍA -->
+                <div class="tab-panel" id="tabPanel-telefonia" style="display:none;">
+                    <table class="tabla-comercializadoras">
+                        <thead><tr><th>Comercializadora</th><th>Tarifa</th><th>Comisión (€)</th><th>Liquidación (días)</th><th>Descomisión</th><th></th></tr></thead>
+                        <tbody id="tbodyTelefonia"></tbody>
+                    </table>
+                    <button class="btn-add-row" onclick="añadirFilaTarifa('telefonia')">+ Añadir tarifa</button>
+                </div>
+
+                <!-- PLACAS SOLARES (sin descomisión) -->
+                <div class="tab-panel" id="tabPanel-placas_solares" style="display:none;">
+                    <table class="tabla-comercializadoras">
+                        <thead><tr><th>Comercializadora</th><th>Paquete</th><th>Comisión (€)</th><th>Liquidación (días)</th><th></th></tr></thead>
+                        <tbody id="tbodyPlacasSolares"></tbody>
+                    </table>
+                    <button class="btn-add-row" onclick="añadirFilaTarifa('placas_solares')">+ Añadir paquete</button>
+                </div>
+
+                <!-- ALARMAS (sin descomisión) -->
+                <div class="tab-panel" id="tabPanel-alarmas" style="display:none;">
+                    <table class="tabla-comercializadoras">
+                        <thead><tr><th>Comercializadora</th><th>Paquete</th><th>Comisión (€)</th><th>Liquidación (días)</th><th></th></tr></thead>
+                        <tbody id="tbodyAlarmas"></tbody>
+                    </table>
+                    <button class="btn-add-row" onclick="añadirFilaTarifa('alarmas')">+ Añadir paquete</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="cerrarModalComercializadoras()" class="btn-secondary">Cancelar</button>
+                <button onclick="guardarComercializadoras()" class="btn-primary">Guardar Configuración</button>
+            </div>
         </div>
     </div>
 
