@@ -518,6 +518,16 @@ body {
     cursor: not-allowed;
 }
 
+.aviso-fecha-liquidacion {
+    margin-top: 10px;
+    padding: 10px 15px;
+    background: #fff7ed;
+    border-left: 4px solid #f59e0b;
+    border-radius: 8px;
+    font-size: 0.9em;
+    color: #92400e;
+}
+
 .mensaje-ventas-cobrar {
     margin-top: 10px;
     padding: 12px 15px;

@@ -16,12 +16,15 @@ const estadoJerarquico = {
 };
 const chartInstancesJerarquico = { ventas: null, bajas: null };
 
-// Granularidad mensual/diario para Combinado (Ingresos/Gastos/Caja), Crecimiento y OpEx.
-// El resto de Cash Management (Runway, Burn Rate) y Eficiencia (CAC/Churn/Margen) quedan
-// siempre mensuales, ya que son conceptos de tasa mensual.
+// Granularidad mensual/diario para Combinado (Ingresos/Gastos/Caja), Crecimiento, OpEx,
+// Ventas por Sector y Bajas por Comercializadora. El resto de Cash Management (Runway,
+// Burn Rate) y Eficiencia (CAC/Churn/Margen) quedan siempre mensuales, ya que son
+// conceptos de tasa mensual.
 let granularidadCombinado = 'mensual';
 let granularidadCrecimiento = 'mensual';
 let granularidadOpEx = 'mensual';
+let granularidadVentasSector = 'mensual';
+let granularidadBajas = 'mensual';
 const chartInstancesExtra = { combinado: null, crecimiento: null, opex: null };
 
 // Caja Efectiva vs Caja Proyectada (Ingresos cobrados vs cobrados+pendientes de liquidar)
@@ -112,6 +115,8 @@ function mostrarPilares(data) {
     granularidadCombinado = 'mensual';
     granularidadCrecimiento = 'mensual';
     granularidadOpEx = 'mensual';
+    granularidadVentasSector = 'mensual';
+    granularidadBajas = 'mensual';
     proyectadoActivo = false;
     const btnProyectadoReset = document.getElementById('btnToggleProyectado');
     if (btnProyectadoReset) { btnProyectadoReset.classList.remove('active'); btnProyectadoReset.disabled = false; }
@@ -678,38 +683,77 @@ function _buscarConfigComercializadora(comercializadoras, venta) {
     return lista.find(c => (c.comercializadora || '').trim().toLowerCase() === nombreCom) || null;
 }
 
+function _formatearMes(year, month) {
+    const d = new Date(year, month, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Mes efectivo de liquidación de una fecha de referencia (activación de una venta pendiente,
+// o fecha de baja), según los días de liquidación configurados para su comercializadora:
+//   - CON días configurados: si hay un día >= día-de-mes(fechaRef) dentro del MISMO mes, se
+//     queda en ese mes; si no (el día ya pasó), pasa al mes siguiente.
+//   - SIN días configurados (por defecto): usa `usarSiguienteMesPorDefecto` — true para ventas
+//     pendientes ("si no especifico nada, se proyecta al mes siguiente"), false para bajas (se
+//     mantiene el mes literal de la baja, comportamiento ya usado hasta ahora).
+function _mesEfectivoLiquidacion(fechaRef, diasLiquidacion, usarSiguienteMesPorDefecto) {
+    if (!fechaRef) return null;
+    const fecha = new Date(fechaRef + 'T00:00:00');
+    if (isNaN(fecha)) return null;
+    const y = fecha.getFullYear(), m = fecha.getMonth(), diaRef = fecha.getDate();
+
+    const diasValidos = (Array.isArray(diasLiquidacion) ? diasLiquidacion : [])
+        .map(d => parseInt(d, 10))
+        .filter(d => !isNaN(d) && d >= 1 && d <= 31);
+
+    if (diasValidos.length === 0) {
+        return _formatearMes(y, usarSiguienteMesPorDefecto ? m + 1 : m);
+    }
+    const hayDiaEsteMes = diasValidos.some(d => d >= diaRef);
+    return hayDiaEsteMes ? _formatearMes(y, m) : _formatearMes(y, m + 1);
+}
+
 // Calcula, para una granularidad dada ('mensual'|'diario'), las series de Ingresos
-// cobrados, Gastos y Caja Efectiva (datos REALES: nunca se corrigen, un mes ya
-// transcurrido se considera cerrado) y, solo para el MES ACTUAL (el último mes con
+// cobrados, Gastos y Caja Efectiva, y, solo para el MES ACTUAL (el último mes con
 // datos; la proyección no tiene sentido a nivel diario), Ingresos Proyectados, Caja
 // Proyectada y Bajas Proyectadas:
-//   - Ingresos Proyectados del mes actual = lo ya cobrado ESTE mes + las ventas
-//     PENDIENTES de meses anteriores (ya reflejadas aquí, no en su propio mes) -
-//     las Descomisiones de bajas de meses anteriores (de ventas cobradas o
-//     pendientes) que ya son un hecho conocido.
-//   - Una venta pendiente de un mes anterior que se dio de baja TAMBIÉN en un mes
-//     anterior se refleja ya neta de su descomisión (no se sabe un día exacto de
-//     liquidación: solo importa el mes).
-//   - Las bajas que ocurren EN el mes actual (de cualquier venta, cobrada o
-//     pendiente) no restan nada todavía: se muestran aparte como "Bajas
-//     Proyectadas", el importe que se restará el próximo mes cuando este mes pase
-//     a ser "anterior".
-//   - Si el mes actual es el primer mes con datos, no hay nada pendiente de antes:
-//     Ingresos/Caja Proyectada coinciden exactamente con lo Cobrado/Caja Efectiva.
+//   - Ventas YA COBRADAS: se ubican por su Fecha de Liquidación (columna del Excel;
+//     si no la tiene, por su Fecha de venta) — eso determina en qué mes/día cuentan
+//     en Ingresos (cobrados)/Caja Efectiva. Un mes ya transcurrido queda cerrado: no
+//     se reescribe. Si se dan de baja, es una descomisión EFECTIVA (dinero real a
+//     devolver): se resta del Ingreso (cobrado) REAL del MES ACTUAL (no del
+//     Proyectado), propagándose también a la Caja Efectiva.
+//   - Ventas PENDIENTES: nunca fueron dinero real, así que solo afectan al
+//     Proyectado. Su mes efectivo (¿cuenta ya, o pasa al mes siguiente?) depende de
+//     si su comercializadora tiene Liquidación (días del mes) configurada: con días,
+//     se queda en su propio mes si alguno de esos días no ha pasado aún ese mes: si
+//     no, pasa al siguiente; sin días, por defecto siempre pasa al mes siguiente. Lo
+//     mismo aplica a sus bajas para decidir si ya se restan o si aún se previsualizan.
+//   - Las altas o bajas que ocurren EN el mes actual (de cualquier venta, cobrada o
+//     pendiente) no afectan todavía a ningún total: se muestran aparte como
+//     "Ventas por Cobrar" / "Bajas Proyectadas", lo que se sumará/restará el
+//     próximo mes cuando este mes pase a ser "anterior".
+//   - Si el mes actual es el primer mes con datos, no hay nada pendiente ni de
+//     baja de antes: Ingresos/Caja Proyectada coinciden con lo Cobrado/Caja Efectiva.
 function calcularSeriesCombinado(granularidad) {
     const cajaInicial = (pilaresActual && pilaresActual.cash_management && pilaresActual.cash_management.caja_inicial) || 0;
 
+    // Para una venta ya cobrada, su fecha "real" en el gráfico es su Fecha de
+    // Liquidación si la tiene; si no, su Fecha de venta (comportamiento anterior).
+    const _fechaUbicacion = f => (!f.es_pendiente && f.fecha_liquidacion) ? f.fecha_liquidacion : f.fecha;
+
     const bucketsSet = new Set();
-    detalleGlobal.forEach(f => { const b = _bucketDeFecha(f.fecha, granularidad); if (b) bucketsSet.add(b); });
+    detalleGlobal.forEach(f => { const b = _bucketDeFecha(_fechaUbicacion(f), granularidad); if (b) bucketsSet.add(b); });
     detalleGastosGlobal.forEach(f => { const b = _bucketDeFecha(f.fecha, granularidad); if (b) bucketsSet.add(b); });
     const buckets = Array.from(bucketsSet).sort();
 
     const ingresosCobrados = {};
     const gastosPorBucket = {};
+    let cobradasSinLiquidacion = 0;
 
     detalleGlobal.forEach(f => {
         if (f.es_pendiente) return;
-        const b = _bucketDeFecha(f.fecha, granularidad);
+        if (!f.fecha_liquidacion) cobradasSinLiquidacion++;
+        const b = _bucketDeFecha(_fechaUbicacion(f), granularidad);
         if (b) ingresosCobrados[b] = (ingresosCobrados[b] || 0) + (f.importe || 0);
     });
     detalleGastosGlobal.forEach(f => {
@@ -717,43 +761,38 @@ function calcularSeriesCombinado(granularidad) {
         if (b) gastosPorBucket[b] = (gastosPorBucket[b] || 0) + (f.importe || 0);
     });
 
-    let cajaEfectivaAcum = cajaInicial;
-    const ingresosCobradosArr = [], gastosArr = [], cajaEfectivaArr = [];
-    const ingresosProyectadosArr = [], cajaProyectadaArr = [];
-
-    buckets.forEach(b => {
-        const ingC = ingresosCobrados[b] || 0;
-        const gas = gastosPorBucket[b] || 0;
-        ingresosCobradosArr.push(ingC);
-        gastosArr.push(gas);
-        cajaEfectivaAcum += ingC - gas;
-        cajaEfectivaArr.push(cajaEfectivaAcum);
-        ingresosProyectadosArr.push(null);
-        cajaProyectadaArr.push(null);
-    });
+    const mesActual = (granularidad === 'mensual' && buckets.length > 0) ? buckets[buckets.length - 1] : null;
 
     let bajasProyectadas = 0;
     let ventasPorCobrar = 0;
-    const mesActual = (granularidad === 'mensual' && buckets.length > 0) ? buckets[buckets.length - 1] : null;
+    let pendientesMesesAnteriores = 0; // ventas pendientes de meses cerrados (netas de su propia descomisión, si la hubo)
 
     if (mesActual) {
-        const idxMesActual = buckets.length - 1;
-        let proyectado = ingresosCobradosArr[idxMesActual];
-
         detalleGlobal.forEach(f => {
             const config = _buscarConfigComercializadora(comercializadorasActual, f);
+            const tieneLiquidacion = !!(config && Array.isArray(config.liquidacion) && config.liquidacion.length);
             const fechaBase = f.fecha_activacion || f.fecha;
-            const mesBaja = f.fecha_baja ? f.fecha_baja.slice(0, 7) : null;
             const dias = (fechaBase && f.fecha_baja) ? _diasEntre(fechaBase, f.fecha_baja) : null;
             const pct = dias != null ? _buscarPorcentajeDescomision(config, dias) : 0;
+            // Mes efectivo de la baja: con Liquidación configurada, el día más próximo por
+            // comercializadora decide si se queda en el mes de la baja o pasa al siguiente;
+            // sin configurar, se mantiene el mes literal de la baja (comportamiento previo).
+            // Si ese cálculo empuja la baja a un mes POSTERIOR al actual (no puede haber datos
+            // ahí todavía), se trata como del mes actual: nunca se pierde, solo se previsualiza.
+            let mesBaja = f.fecha_baja
+                ? (tieneLiquidacion ? _mesEfectivoLiquidacion(f.fecha_baja, config.liquidacion, false) : f.fecha_baja.slice(0, 7))
+                : null;
+            if (mesBaja && mesBaja > mesActual) mesBaja = mesActual;
 
             if (!f.es_pendiente) {
-                // Ya cobrada: su importe queda intacto en el mes en que se cobró (cerrado).
-                // Si tiene baja, la descomisión afecta al mes actual, no a su mes de cobro.
+                // Ya cobrada: su importe queda intacto en el mes en que se ubicó (cerrado).
+                // Si tiene baja, es una descomisión EFECTIVA (dinero real a devolver): corrige
+                // el Ingreso (cobrado) REAL del mes actual, no el Proyectado — y por tanto se
+                // propaga también a la Caja Efectiva, no solo a la Caja Proyectada.
                 if (mesBaja && pct > 0) {
                     const monto = (f.importe || 0) * (pct / 100);
                     if (mesBaja < mesActual) {
-                        proyectado -= monto; // baja de un mes ya cerrado: se resta del proyectado actual
+                        ingresosCobrados[mesActual] = (ingresosCobrados[mesActual] || 0) - monto;
                     } else if (mesBaja === mesActual) {
                         bajasProyectadas += monto; // baja de este mes: solo se previsualiza
                     }
@@ -761,38 +800,57 @@ function calcularSeriesCombinado(granularidad) {
                 return;
             }
 
-            // Pendiente
-            const mesVenta = fechaBase ? fechaBase.slice(0, 7) : null;
-            if (!mesVenta || mesVenta >= mesActual) {
-                // Pendiente de ESTE mes: aún no se refleja (se reflejará el mes que viene).
-                // Se previsualiza en "Ventas por Cobrar"; si además se da de baja este mismo
-                // mes, esa parte se previsualiza aparte en "Bajas Proyectadas".
-                if (mesVenta === mesActual) {
-                    ventasPorCobrar += (f.importe || 0);
-                    if (mesBaja === mesActual && pct > 0) {
-                        bajasProyectadas += (f.importe || 0) * (pct / 100);
-                    }
+            // Pendiente: nunca fue dinero real, así que su baja solo afecta a la Proyección.
+            // Mes efectivo de la venta: con Liquidación configurada, se queda en su propio mes
+            // si a su comercializadora aún le queda un día de liquidación ese mes; si no (o sin
+            // Liquidación configurada), pasa al mes siguiente.
+            const mesVenta = _mesEfectivoLiquidacion(fechaBase, tieneLiquidacion ? config.liquidacion : null, true);
+            if (!mesVenta || mesVenta > mesActual) {
+                // Aún no toca: se previsualiza en "Ventas por Cobrar" (se reflejará el mes que
+                // viene). Si además se da de baja este mismo mes, se previsualiza aparte.
+                ventasPorCobrar += (f.importe || 0);
+                if (mesBaja === mesActual && pct > 0) {
+                    bajasProyectadas += (f.importe || 0) * (pct / 100);
                 }
                 return;
             }
 
-            // Pendiente de un mes ANTERIOR: se refleja en el mes actual.
+            // mesVenta <= mesActual: ya toca, se refleja en el Proyectado del mes actual.
             if (mesBaja && mesBaja < mesActual) {
                 // También se dio de baja en un mes ya cerrado: se refleja ya neta de descomisión.
-                proyectado += (f.importe || 0) * (1 - pct / 100);
+                pendientesMesesAnteriores += (f.importe || 0) * (1 - pct / 100);
             } else if (mesBaja === mesActual) {
                 // Se dio de baja este mes: se refleja íntegra + se previsualiza la baja.
-                proyectado += (f.importe || 0);
+                pendientesMesesAnteriores += (f.importe || 0);
                 if (pct > 0) bajasProyectadas += (f.importe || 0) * (pct / 100);
             } else {
-                proyectado += (f.importe || 0);
+                pendientesMesesAnteriores += (f.importe || 0);
             }
         });
-
-        ingresosProyectadosArr[idxMesActual] = proyectado;
-        const cajaAlCierreMesAnterior = idxMesActual > 0 ? cajaEfectivaArr[idxMesActual - 1] : cajaInicial;
-        cajaProyectadaArr[idxMesActual] = cajaAlCierreMesAnterior + proyectado - gastosArr[idxMesActual];
     }
+
+    let cajaEfectivaAcum = cajaInicial;
+    const ingresosCobradosArr = [], gastosArr = [], cajaEfectivaArr = [];
+    const ingresosProyectadosArr = [], cajaProyectadaArr = [];
+
+    buckets.forEach((b, idx) => {
+        const ingC = ingresosCobrados[b] || 0; // ya incluye la corrección por descomisión si b === mesActual
+        const gas = gastosPorBucket[b] || 0;
+        ingresosCobradosArr.push(ingC);
+        gastosArr.push(gas);
+        cajaEfectivaAcum += ingC - gas;
+        cajaEfectivaArr.push(cajaEfectivaAcum);
+
+        if (b === mesActual) {
+            const proyectado = ingC + pendientesMesesAnteriores;
+            ingresosProyectadosArr.push(proyectado);
+            const cajaAlCierreMesAnterior = idx > 0 ? cajaEfectivaArr[idx - 1] : cajaInicial;
+            cajaProyectadaArr.push(cajaAlCierreMesAnterior + proyectado - gas);
+        } else {
+            ingresosProyectadosArr.push(null);
+            cajaProyectadaArr.push(null);
+        }
+    });
 
     return {
         buckets,
@@ -803,6 +861,7 @@ function calcularSeriesCombinado(granularidad) {
         cajaProyectada: cajaProyectadaArr,
         bajasProyectadas,
         ventasPorCobrar,
+        cobradasSinLiquidacion,
         mesActual
     };
 }
@@ -835,6 +894,21 @@ function renderMensajeVentasPorCobrar(bajasProyectadas, ventasPorCobrar, mesActu
     el.style.display = 'block';
 }
 
+// Aviso de calidad de datos: no depende de PROYECTADO, porque afecta a Ingresos
+// (cobrados)/Caja Efectiva REALES (dónde se ubica cada venta cobrada en el gráfico).
+function renderAvisoFechaLiquidacion(cantidad) {
+    const el = document.getElementById('avisoFechaLiquidacion');
+    if (!el) return;
+    if (!cantidad) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        return;
+    }
+    const plural = cantidad === 1 ? 'venta cobrada no tiene' : 'ventas cobradas no tienen';
+    el.innerHTML = `⚠️ ${cantidad} ${plural} Fecha de Liquidación — se usó su Fecha de venta en su lugar, lo que puede distorsionar los resultados.`;
+    el.style.display = 'block';
+}
+
 function renderGraficoCombinado() {
     if (!pilaresActual) return;
     const el = document.querySelector('#chartCombinado');
@@ -852,6 +926,7 @@ function renderGraficoCombinado() {
     if (titulo) titulo.textContent = esDiario ? 'Ingresos, Gastos y Evolución de Caja (diario)' : 'Ingresos, Gastos y Evolución de Caja';
 
     renderMensajeVentasPorCobrar(datos.bajasProyectadas, datos.ventasPorCobrar, datos.mesActual);
+    renderAvisoFechaLiquidacion(datos.cobradasSinLiquidacion);
 
     if (!datos.buckets.length) {
         el.innerHTML = '<p style="padding:20px;color:#6b7280;">Sin datos.</p>';
@@ -1082,6 +1157,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else if (target === 'opex') {
                     granularidadOpEx = btn.dataset.modo;
                     renderGraficoOpEx();
+                } else if (target === 'ventasSector') {
+                    granularidadVentasSector = btn.dataset.modo;
+                    // Cambiar de granularidad reinicia el drill-down: un nivel abierto en
+                    // "mensual" no tiene sentido comparado día a día (y viceversa).
+                    estadoJerarquico.ventas = { nivel: 0, sector: null, comercializadora: null };
+                    renderGraficoVentasJerarquico();
+                } else if (target === 'bajas') {
+                    granularidadBajas = btn.dataset.modo;
+                    estadoJerarquico.bajas = { nivel: 0, sector: null, comercializadora: null, mes: null };
+                    renderGraficoBajasJerarquico();
                 }
             });
         });
@@ -1807,17 +1892,19 @@ function esNivelMaximo(estado) {
 }
 
 // ----------------------------------------------------------------------------
-// VENTAS: serie temporal (por mes) combinada con el drill-down por comercializadora/tarifa
+// VENTAS: serie temporal (por mes o por día) combinada con el drill-down por
+// comercializadora/tarifa
 // ----------------------------------------------------------------------------
 
-function calcularSerieTemporalVentas(estado) {
+function calcularSerieTemporalVentas(estado, granularidad) {
     const campo = campoAgrupacionNivel(estado);
     const filasBase = detalleGlobal.filter(f => aplicaFiltrosBase('ventas', f) && aplicaDrillDown(f, estado));
 
     const mesesSet = new Set();
     const gruposSet = new Set();
     filasBase.forEach(f => {
-        if (f.mes) mesesSet.add(f.mes);
+        const b = _bucketDeFecha(f.fecha, granularidad);
+        if (b) mesesSet.add(b);
         gruposSet.add(f[campo] || 'Sin dato');
     });
     const meses = Array.from(mesesSet).sort();
@@ -1829,7 +1916,7 @@ function calcularSerieTemporalVentas(estado) {
 
     filasBase.forEach(f => {
         const g = f[campo] || 'Sin dato';
-        const m = f.mes;
+        const m = _bucketDeFecha(f.fecha, granularidad);
         if (!m) return;
         datosPorGrupoMes[g][m] = (datosPorGrupoMes[g][m] || 0) + (f.importe || 0);
         totalPorMes[m] = (totalPorMes[m] || 0) + (f.importe || 0);
@@ -1849,13 +1936,13 @@ function calcularSerieTemporalVentas(estado) {
     return { meses, series, grupos };
 }
 
-function renderTooltipTarifasVentas(estado, claveGrupo, mes) {
+function renderTooltipTarifasVentas(estado, claveGrupo, mes, granularidad) {
     const campoNivelActual = campoAgrupacionNivel(estado);
     let filas = detalleGlobal.filter(f => aplicaFiltrosBase('ventas', f) && aplicaDrillDown(f, estado));
     filas = filas.filter(f => (f[campoNivelActual] || 'Sin dato') === claveGrupo);
-    // La barra sobre la que se hace hover pertenece a UN mes concreto (eje X del gráfico);
-    // sin este filtro se sumaban las tarifas de TODOS los meses juntas (bug reportado).
-    if (mes) filas = filas.filter(f => f.mes === mes);
+    // La barra sobre la que se hace hover pertenece a UN mes (o día) concreto del eje X;
+    // sin este filtro se sumaban las tarifas de TODO el período junto (bug reportado).
+    if (mes) filas = filas.filter(f => _bucketDeFecha(f.fecha, granularidad) === mes);
 
     const porTarifa = {};
     filas.forEach(f => {
@@ -1878,11 +1965,15 @@ function renderTooltipTarifasVentas(estado, claveGrupo, mes) {
 
 function renderGraficoVentasJerarquico() {
     const estado = estadoJerarquico.ventas;
-    const { meses, series, grupos } = calcularSerieTemporalVentas(estado);
+    const esDiario = granularidadVentasSector === 'diario';
+    const { meses, series, grupos } = calcularSerieTemporalVentas(estado, esDiario ? 'diario' : 'mensual');
 
     const el = document.getElementById('chartVentasSector');
     if (!el) return;
     el.innerHTML = '';
+
+    const tituloTexto = document.getElementById('tituloVentasSectorTexto');
+    if (tituloTexto) tituloTexto.textContent = esDiario ? 'Ventas por Sector y Total Diario' : 'Ventas por Sector y Total Mensual';
 
     if (chartInstancesJerarquico.ventas) {
         try { chartInstancesJerarquico.ventas.destroy(); } catch (e) { /* noop */ }
@@ -1918,7 +2009,7 @@ function renderGraficoVentasJerarquico() {
         plotOptions: { bar: { columnWidth: '60%' } },
         fill: { opacity: 0.85 },
         labels: meses,
-        xaxis: { type: 'category' },
+        xaxis: { type: 'category', labels: { rotate: esDiario ? -45 : 0 } },
         yaxis: {
             title: { text: 'Ventas (€)' },
             labels: { formatter: v => (v != null ? v.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + '€' : '') }
@@ -1934,7 +2025,7 @@ function renderGraficoVentasJerarquico() {
                     const val = opts.series[opts.seriesIndex][opts.dataPointIndex];
                     return `<div style="padding:8px 10px;">${nombreSerie || ''}: <strong>${(val || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>`;
                 }
-                return renderTooltipTarifasVentas(estado, nombreSerie, meses[opts.dataPointIndex]);
+                return renderTooltipTarifasVentas(estado, nombreSerie, meses[opts.dataPointIndex], esDiario ? 'diario' : 'mensual');
             }
         } : {
             shared: true,
@@ -2001,11 +2092,11 @@ function _tasaBaja(ventas, bajas) {
     return bajas > 0 ? null : 0; // bajas sin ninguna venta en ese mes/grupo: no calculable (N/A)
 }
 
-function calcularSerieTemporalBajas(estado) {
+function calcularSerieTemporalBajas(estado, granularidad) {
     const campo = campoAgrupacionNivel(estado);
     const filasBase = detalleGlobal.filter(f => aplicaFiltrosDimensionales('bajas', f) && aplicaDrillDown(f, estado));
-    // Mes fijado al entrar al drill-down (click en la barra de un mes concreto): a partir de
-    // ahí, comercializadora/luz-gas/tarifa se quedan restringidos a ESE mes, no a todos.
+    // Período fijado al entrar al drill-down (click en la barra de un mes/día concreto): a
+    // partir de ahí, comercializadora/luz-gas/tarifa se quedan restringidos a ESE período.
     const mesFiltro = estado.mes || null;
 
     const mesesSet = new Set();
@@ -2013,11 +2104,11 @@ function calcularSerieTemporalBajas(estado) {
     filasBase.forEach(f => {
         const g = f[campo] || 'Sin dato';
         if (f.fecha && _fechaPasaFiltro('bajas', f.fecha)) {
-            const m = f.fecha.slice(0, 7);
+            const m = _bucketDeFecha(f.fecha, granularidad);
             if (!mesFiltro || m === mesFiltro) { mesesSet.add(m); gruposSet.add(g); }
         }
         if (f.es_baja && f.fecha_baja && _fechaPasaFiltro('bajas', f.fecha_baja)) {
-            const m = f.fecha_baja.slice(0, 7);
+            const m = _bucketDeFecha(f.fecha_baja, granularidad);
             if (!mesFiltro || m === mesFiltro) { mesesSet.add(m); gruposSet.add(g); }
         }
     });
@@ -2031,11 +2122,11 @@ function calcularSerieTemporalBajas(estado) {
         const g = f[campo] || 'Sin dato';
         if (!ventasPorGrupoMes[g]) { ventasPorGrupoMes[g] = {}; bajasPorGrupoMes[g] = {}; }
         if (f.fecha && _fechaPasaFiltro('bajas', f.fecha)) {
-            const m = f.fecha.slice(0, 7);
+            const m = _bucketDeFecha(f.fecha, granularidad);
             if (!mesFiltro || m === mesFiltro) ventasPorGrupoMes[g][m] = (ventasPorGrupoMes[g][m] || 0) + 1;
         }
         if (f.es_baja && f.fecha_baja && _fechaPasaFiltro('bajas', f.fecha_baja)) {
-            const m = f.fecha_baja.slice(0, 7);
+            const m = _bucketDeFecha(f.fecha_baja, granularidad);
             if (!mesFiltro || m === mesFiltro) bajasPorGrupoMes[g][m] = (bajasPorGrupoMes[g][m] || 0) + 1;
         }
     });
@@ -2060,7 +2151,7 @@ function calcularSerieTemporalBajas(estado) {
     return { meses, series, grupos };
 }
 
-function renderTooltipTarifasBajas(estado, claveGrupo, mes) {
+function renderTooltipTarifasBajas(estado, claveGrupo, mes, granularidad) {
     const campoNivelActual = campoAgrupacionNivel(estado);
     let filas = detalleGlobal.filter(f => aplicaFiltrosDimensionales('bajas', f) && aplicaDrillDown(f, estado));
     filas = filas.filter(f => (f[campoNivelActual] || 'Sin dato') === claveGrupo);
@@ -2068,10 +2159,10 @@ function renderTooltipTarifasBajas(estado, claveGrupo, mes) {
     const ventasPorTarifa = {}, bajasPorTarifa = {};
     filas.forEach(f => {
         const t = f.tarifa || 'Sin tarifa';
-        if (f.fecha && _fechaPasaFiltro('bajas', f.fecha) && (!mes || f.fecha.slice(0, 7) === mes)) {
+        if (f.fecha && _fechaPasaFiltro('bajas', f.fecha) && (!mes || _bucketDeFecha(f.fecha, granularidad) === mes)) {
             ventasPorTarifa[t] = (ventasPorTarifa[t] || 0) + 1;
         }
-        if (f.es_baja && f.fecha_baja && _fechaPasaFiltro('bajas', f.fecha_baja) && (!mes || f.fecha_baja.slice(0, 7) === mes)) {
+        if (f.es_baja && f.fecha_baja && _fechaPasaFiltro('bajas', f.fecha_baja) && (!mes || _bucketDeFecha(f.fecha_baja, granularidad) === mes)) {
             bajasPorTarifa[t] = (bajasPorTarifa[t] || 0) + 1;
         }
     });
@@ -2096,11 +2187,15 @@ function renderTooltipTarifasBajas(estado, claveGrupo, mes) {
 
 function renderGraficoBajasJerarquico() {
     const estado = estadoJerarquico.bajas;
-    const { meses, series, grupos } = calcularSerieTemporalBajas(estado);
+    const esDiario = granularidadBajas === 'diario';
+    const { meses, series, grupos } = calcularSerieTemporalBajas(estado, esDiario ? 'diario' : 'mensual');
 
     const el = document.getElementById('chartTotalBajasJerarquico');
     if (!el) return;
     el.innerHTML = '';
+
+    const tituloTexto = document.getElementById('tituloBajasTexto');
+    if (tituloTexto) tituloTexto.textContent = esDiario ? 'Total de Bajas (diario)' : 'Total de Bajas';
 
     if (chartInstancesJerarquico.bajas) {
         try { chartInstancesJerarquico.bajas.destroy(); } catch (e) { /* noop */ }
@@ -2136,7 +2231,7 @@ function renderGraficoBajasJerarquico() {
         plotOptions: { bar: { columnWidth: '60%' } },
         fill: { opacity: 0.85 },
         labels: meses,
-        xaxis: { type: 'category' },
+        xaxis: { type: 'category', labels: { rotate: esDiario ? -45 : 0 } },
         yaxis: {
             // % bajas de CADA grupo = bajas del grupo ese mes / ventas de ese mismo grupo ese
             // mes (no sobre el total del segmento), para comparar retención entre
@@ -2155,7 +2250,7 @@ function renderGraficoBajasJerarquico() {
                     const val = opts.series[opts.seriesIndex][opts.dataPointIndex];
                     return `<div style="padding:8px 10px;">${nombreSerie || ''}: <strong>${val == null ? 'N/A' : val.toFixed(1) + '%'}</strong></div>`;
                 }
-                return renderTooltipTarifasBajas(estado, nombreSerie, meses[opts.dataPointIndex]);
+                return renderTooltipTarifasBajas(estado, nombreSerie, meses[opts.dataPointIndex], esDiario ? 'diario' : 'mensual');
             }
         } : {
             shared: true,

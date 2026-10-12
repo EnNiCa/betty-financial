@@ -991,12 +991,18 @@ def calcular_detalle_transacciones(df_transacciones):
     col_comision = _buscar_columna(df, ['Com Eur Pagar', 'COM EUR PAGAR', 'COMISION EUR', 'COMISIÓN EUR', 'Comision Eur'])
     col_id_cliente = _buscar_columna(df, ['ID Cliente', 'ID Cliente/Proveedor'])
     col_fecha_activacion = _buscar_columna(df, ['Fecha de Activación', 'Fecha de Activacion', 'FECHA DE ACTIVACIÓN', 'Fecha Activación'])
+    col_fecha_liquidacion = _buscar_columna(df, ['Fecha de Liquidación', 'Fecha de Liquidacion', 'FECHA DE LIQUIDACIÓN', 'Fecha Liquidación'])
     col_estado = _buscar_columna(df, ['Estado', 'ESTADO'])
 
     if col_fecha_activacion:
         fecha_activacion_parsed = pd.to_datetime(df_ventas[col_fecha_activacion], errors='coerce')
     else:
         fecha_activacion_parsed = pd.Series(pd.NaT, index=df_ventas.index)
+
+    if col_fecha_liquidacion:
+        fecha_liquidacion_parsed = pd.to_datetime(df_ventas[col_fecha_liquidacion], errors='coerce')
+    else:
+        fecha_liquidacion_parsed = pd.Series(pd.NaT, index=df_ventas.index)
 
     def _texto(row, col, default=None):
         if col and pd.notna(row.get(col)):
@@ -1009,6 +1015,7 @@ def calcular_detalle_transacciones(df_transacciones):
     for idx, row in df_ventas.iterrows():
         fecha_baja_val = row['_fecha_baja_efectiva']
         fecha_activacion_val = fecha_activacion_parsed.loc[idx]
+        fecha_liquidacion_val = fecha_liquidacion_parsed.loc[idx]
         estado_val = _texto(row, col_estado)
         es_pendiente = bool(estado_val) and estado_val.strip() in valores_pendiente
         detalle.append({
@@ -1024,6 +1031,10 @@ def calcular_detalle_transacciones(df_transacciones):
             'comision_eur': float(row[col_comision]) if col_comision and pd.notna(row.get(col_comision)) else 0.0,
             'id_cliente': _texto(row, col_id_cliente),
             'fecha_activacion': fecha_activacion_val.strftime('%Y-%m-%d') if pd.notna(fecha_activacion_val) else None,
+            # Fecha de Liquidación: determina en qué mes/día se ubica una venta YA COBRADA en
+            # el gráfico de Ingresos/Gastos/Caja (en vez de su 'Fecha' de registro). Solo se usa
+            # para ventas cobradas; las pendientes siguen proyectándose por su propia lógica.
+            'fecha_liquidacion': fecha_liquidacion_val.strftime('%Y-%m-%d') if pd.notna(fecha_liquidacion_val) else None,
             'fecha_baja': fecha_baja_val.strftime('%Y-%m-%d') if pd.notna(fecha_baja_val) else None,
             'es_baja': bool(row['_es_baja']),
             # 'estado' crudo de la columna Estado del Excel (Cobrado/Pagado/Confirmado/Pendiente/...).

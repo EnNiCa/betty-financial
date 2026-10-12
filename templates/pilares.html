@@ -293,15 +293,22 @@
                             </div>
                         </div>
                         <div id="chartCombinado"></div>
+                        <div id="avisoFechaLiquidacion" class="aviso-fecha-liquidacion" style="display:none;"></div>
                         <div id="mensajeVentasPorCobrar" class="mensaje-ventas-cobrar" style="display:none;"></div>
-                        <p class="chart-analysis">Ingresos (cobrados) y Caja Efectiva son datos reales: cada mes queda cerrado tal como ocurrió, sin corregir. Activa "PROYECTADO" (solo en vista Mensual) para ver, además, Ingresos y Caja Proyectada del <strong>mes actual</strong> (el último mes con datos): suman lo cobrado este mes más las ventas pendientes de meses anteriores, y restan las bajas ya conocidas de meses anteriores. Lo que ocurre EN el mes actual (ventas pendientes nuevas y bajas) aún no afecta a su propio proyectado — se previsualiza aparte en el panel "Ventas por Cobrar / Correcciones", y se reflejará en el mes siguiente.</p>
+                        <p class="chart-analysis">Ingresos (cobrados) y Caja Efectiva son datos reales: cada venta cobrada se ubica por su <strong>Fecha de Liquidación</strong> (columna del Excel; si falta, por su Fecha de venta). Un mes ya transcurrido no se reescribe, pero el <strong>mes actual</strong> (el último mes con datos) sí se corrige si una venta cobrada en un mes anterior se da de baja — es una descomisión efectiva, dinero real a devolver. Activa "PROYECTADO" (solo en vista Mensual) para ver además Ingresos y Caja Proyectada del mes actual: lo ya cobrado (y corregido) + las ventas pendientes de meses anteriores. Lo que ocurre EN el mes actual (ventas pendientes nuevas y bajas) aún no afecta a ningún total — se previsualiza aparte en el panel "Ventas por Cobrar / Correcciones", y se reflejará el mes siguiente.</p>
                     </div>
 
                     <!-- Ventas por Sector: gráfico único con filtros + drill-down por comercializadora/tarifa -->
                     <div class="chart-container full-width">
                         <div class="chart-header-jerarquico">
-                            <h3>Ventas por Sector y Total Mensual <span id="breadcrumbVentas" class="breadcrumb-jerarquico"></span></h3>
-                            <button id="btnVolverVentas" class="btn-volver-jerarquico" style="display:none;" onclick="volverNivelJerarquico('ventas')">← Volver</button>
+                            <h3><span id="tituloVentasSectorTexto">Ventas por Sector y Total Mensual</span> <span id="breadcrumbVentas" class="breadcrumb-jerarquico"></span></h3>
+                            <div class="chart-header-controles">
+                                <div class="toggle-granularidad" data-target="ventasSector">
+                                    <button class="toggle-btn active" data-modo="mensual">Mensual</button>
+                                    <button class="toggle-btn" data-modo="diario">Diario</button>
+                                </div>
+                                <button id="btnVolverVentas" class="btn-volver-jerarquico" style="display:none;" onclick="volverNivelJerarquico('ventas')">← Volver</button>
+                            </div>
                         </div>
 
                         <div class="filtros-detalle">
@@ -348,8 +355,14 @@
 
                 <div class="chart-container full-width">
                     <div class="chart-header-jerarquico">
-                        <h3>Total de Bajas <span id="breadcrumbBajas" class="breadcrumb-jerarquico"></span></h3>
-                        <button id="btnVolverBajas" class="btn-volver-jerarquico" style="display:none;" onclick="volverNivelJerarquico('bajas')">← Volver</button>
+                        <h3><span id="tituloBajasTexto">Total de Bajas</span> <span id="breadcrumbBajas" class="breadcrumb-jerarquico"></span></h3>
+                        <div class="chart-header-controles">
+                            <div class="toggle-granularidad" data-target="bajas">
+                                <button class="toggle-btn active" data-modo="mensual">Mensual</button>
+                                <button class="toggle-btn" data-modo="diario">Diario</button>
+                            </div>
+                            <button id="btnVolverBajas" class="btn-volver-jerarquico" style="display:none;" onclick="volverNivelJerarquico('bajas')">← Volver</button>
+                        </div>
                     </div>
 
                     <div class="filtros-detalle">
@@ -385,7 +398,7 @@
                     </div>
 
                     <div id="chartTotalBajasJerarquico"></div>
-                    <p class="chart-analysis">% de bajas de cada grupo (bajas / ventas de ese mismo grupo, no del total), agrupado por mes. Haz click en una barra para ver el desglose (sector → comercializadora → luz/gas). Pasa el ratón sobre el último nivel para ver el % de bajas por tarifa. Usa "Desde"/"Hasta" para acotar la fecha de baja a un rango de días concreto.</p>
+                    <p class="chart-analysis">% de bajas de cada grupo (bajas / ventas de ese mismo grupo, no del total), agrupado por mes o por día (toggle "Mensual"/"Diario"). Haz click en una barra para ver el desglose (sector → comercializadora → luz/gas). Pasa el ratón sobre el último nivel para ver el % de bajas por tarifa. Usa "Desde"/"Hasta" para acotar la fecha de baja a un rango de días concreto.</p>
                 </div>
             </div>
 
@@ -406,7 +419,7 @@
                 <button class="modal-close" onclick="cerrarModalComercializadoras()">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Configura, por comercializadora, la <strong>Liquidación</strong>: hasta 3 días del mes en los que paga (ej. 15 y 30). Si no indicas ningún día, por defecto se asume el día 1 del mes siguiente a la fecha de referencia (activación de la venta, o fecha de baja en el caso de una corrección por descomisión). En Energía y Telefonía puedes definir además uno o varios tramos de <strong>Descomisión</strong> (tiempo transcurrido desde la activación + % a devolver si el cliente se da de baja).</p>
+                <p>Configura, por comercializadora, la <strong>Liquidación</strong>: hasta 3 días del mes en los que paga (ej. 15 y 30). Afecta solo a las ventas <strong>pendientes</strong> (y a sus bajas): si dejas los días en blanco, por defecto se proyectan siempre al mes siguiente a su fecha de activación; si indicas días, una venta pendiente se queda en el mes en que se activó cuando a su comercializadora aún le queda un día de liquidación ese mes, o pasa al siguiente si no. (Las ventas ya <strong>cobradas</strong> no usan esto — se ubican por su propia columna "Fecha de Liquidación" del Excel.) En Energía y Telefonía puedes definir además uno o varios tramos de <strong>Descomisión</strong> (tiempo transcurrido desde la activación + % a devolver si el cliente se da de baja).</p>
 
                 <div class="tabs-comercializadoras">
                     <button class="tab-btn active" data-tab="energia" onclick="cambiarTabComercializadoras('energia')">⚡ Energía</button>

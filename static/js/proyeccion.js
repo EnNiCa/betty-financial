@@ -147,44 +147,34 @@ function _diasEntre(fechaIni, fechaFin) {
     return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
-function _diaValidoDelMes(year, month, day) {
-    // Clampa al último día del mes si el día configurado no existe en ese mes (ej. 31 en febrero).
-    const ultimoDia = new Date(year, month + 1, 0).getDate();
-    return new Date(year, month, Math.min(day, ultimoDia));
+function _formatearMes(year, month) {
+    const d = new Date(year, month, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function _formatearFecha(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// Fecha de liquidación: el primer día configurado (hasta 3 por comercializadora)
-// que cae en o después de `fechaRef`; si ninguno cae ya en ese mes, el primero
-// del mes siguiente. Sin días configurados: por defecto, día 1 del mes
-// siguiente a `fechaRef`. Misma lógica que en Pilares.
-function _calcularFechaLiquidacion(fechaRef, diasLiquidacion) {
+// Mes efectivo de liquidación de una fecha de referencia (activación de una venta pendiente,
+// o fecha de baja), según los días de liquidación configurados para su comercializadora.
+// Misma lógica que en Pilares (pilares.js), duplicada porque son archivos separados:
+//   - CON días configurados: si hay un día >= día-de-mes(fechaRef) dentro del MISMO mes, se
+//     queda en ese mes; si no (el día ya pasó), pasa al mes siguiente.
+//   - SIN días configurados (por defecto): usa `usarSiguienteMesPorDefecto` — true para ventas
+//     pendientes ("si no especifico nada, se proyecta al mes siguiente"), false para bajas (se
+//     mantiene el mes literal de la baja).
+function _mesEfectivoLiquidacion(fechaRef, diasLiquidacion, usarSiguienteMesPorDefecto) {
     if (!fechaRef) return null;
     const fecha = new Date(fechaRef + 'T00:00:00');
     if (isNaN(fecha)) return null;
-
-    const diasValidos = Array.from(new Set((Array.isArray(diasLiquidacion) ? diasLiquidacion : [])
-        .map(d => parseInt(d, 10))
-        .filter(d => !isNaN(d) && d >= 1 && d <= 31))).sort((a, b) => a - b);
-
     const y = fecha.getFullYear(), m = fecha.getMonth(), diaRef = fecha.getDate();
 
-    if (diasValidos.length === 0) {
-        return _formatearFecha(_diaValidoDelMes(y, m + 1, 1));
-    }
-    for (const d of diasValidos) {
-        if (d >= diaRef) return _formatearFecha(_diaValidoDelMes(y, m, d));
-    }
-    return _formatearFecha(_diaValidoDelMes(y, m + 1, diasValidos[0]));
-}
+    const diasValidos = (Array.isArray(diasLiquidacion) ? diasLiquidacion : [])
+        .map(d => parseInt(d, 10))
+        .filter(d => !isNaN(d) && d >= 1 && d <= 31);
 
-function _diferenciaMesesEntre(yyyyMMa, yyyyMMb) {
-    const [ya, ma] = yyyyMMa.split('-').map(Number);
-    const [yb, mb] = yyyyMMb.split('-').map(Number);
-    return (yb - ya) * 12 + (mb - ma);
+    if (diasValidos.length === 0) {
+        return _formatearMes(y, usarSiguienteMesPorDefecto ? m + 1 : m);
+    }
+    const hayDiaEsteMes = diasValidos.some(d => d >= diaRef);
+    return hayDiaEsteMes ? _formatearMes(y, m) : _formatearMes(y, m + 1);
 }
 
 function _obtenerUltimoMes(detalle) {
@@ -193,33 +183,66 @@ function _obtenerUltimoMes(detalle) {
     return max || new Date().toISOString().slice(0, 7);
 }
 
-// Agenda de descomisión histórica: ventas con fecha de baja YA registrada en el Excel.
-// El % de descomisión se aplica sobre el Importe de la venta (no sobre la comisión
-// comercial "Com Eur Pagar", que es un concepto distinto). Se ubica en la primera
-// fecha de liquidación (según la config de la comercializadora) a partir de la baja.
-// Devuelve { indiceMesProyectado (1-12): montoADescontarEseMes }
-function construirAgendaDescomisionHistorica(detalle, comercializadoras, ultimoMesHistorico) {
-    const agenda = {};
-    (detalle || []).forEach(venta => {
-        if (!venta.fecha_baja || !(venta.importe > 0)) return;
-        const config = _buscarConfigComercializadora(comercializadoras, venta);
-        if (!config) return;
+// Ajustes de arranque de la proyección, con el mismo criterio "mes cerrado vs. mes actual"
+// que el gráfico de Análisis Detallado (Pilares): `mesActual` es el último mes con datos
+// reales (el Mes 1 de esta proyección es el mes SIGUIENTE a mesActual):
+//   - correccionCajaInicial: ventas YA COBRADAS que se dieron de baja en un mes anterior a
+//     mesActual son una descomisión EFECTIVA (dinero real a devolver) — se resta de la Caja
+//     Disponible de partida, igual que en Pilares se resta del Ingreso (cobrado) real.
+//   - pendientesParaMes1: ventas PENDIENTES (de meses anteriores a mesActual, o del propio
+//     mesActual — "Ventas por Cobrar") que entran como ingreso real en el Mes 1, netas de su
+//     descomisión si también se dieron de baja en un mes ya cerrado.
+//   - bajasParaMes1: bajas (de venta cobrada o pendiente) ocurridas EN mesActual — en Pilares
+//     se previsualizan como "Bajas Proyectadas"; aquí, como el Mes 1 ya es el mes siguiente,
+//     se restan directamente ese primer mes.
+function calcularAjustesInicioProyeccion(detalle, comercializadoras, mesActual) {
+    let correccionCajaInicial = 0;
+    let pendientesParaMes1 = 0;
+    let bajasParaMes1 = 0;
 
-        const fechaRef = venta.fecha_activacion || venta.fecha;
-        const dias = _diasEntre(fechaRef, venta.fecha_baja);
-        const pct = _buscarPorcentajeDescomision(config, dias);
-        if (!pct) return;
+    (detalle || []).forEach(f => {
+        const config = _buscarConfigComercializadora(comercializadoras, f);
+        const tieneLiquidacion = !!(config && Array.isArray(config.liquidacion) && config.liquidacion.length);
+        const fechaBase = f.fecha_activacion || f.fecha;
+        const dias = (fechaBase && f.fecha_baja) ? _diasEntre(fechaBase, f.fecha_baja) : null;
+        const pct = dias != null ? _buscarPorcentajeDescomision(config, dias) : 0;
 
-        const monto = venta.importe * (pct / 100);
-        const fechaAjuste = _calcularFechaLiquidacion(venta.fecha_baja, config.liquidacion);
-        const mesDescomision = fechaAjuste.slice(0, 7);
-        const offset = _diferenciaMesesEntre(ultimoMesHistorico, mesDescomision);
+        let mesBaja = f.fecha_baja
+            ? (tieneLiquidacion ? _mesEfectivoLiquidacion(f.fecha_baja, config.liquidacion, false) : f.fecha_baja.slice(0, 7))
+            : null;
+        if (mesBaja && mesBaja > mesActual) mesBaja = mesActual; // nunca se pierde: se trata como de mesActual
 
-        if (offset >= 1 && offset <= 12) {
-            agenda[offset] = (agenda[offset] || 0) + monto;
+        if (!f.es_pendiente) {
+            if (mesBaja && pct > 0) {
+                const monto = (f.importe || 0) * (pct / 100);
+                if (mesBaja < mesActual) {
+                    correccionCajaInicial += monto;
+                } else if (mesBaja === mesActual) {
+                    bajasParaMes1 += monto;
+                }
+            }
+            return;
+        }
+
+        const mesVenta = _mesEfectivoLiquidacion(fechaBase, tieneLiquidacion ? config.liquidacion : null, true);
+        if (!mesVenta || mesVenta > mesActual) {
+            // Pendiente de este mes (aún no se refleja hasta el mes siguiente = Mes 1 aquí)
+            pendientesParaMes1 += (f.importe || 0);
+            if (mesBaja === mesActual && pct > 0) bajasParaMes1 += (f.importe || 0) * (pct / 100);
+            return;
+        }
+
+        if (mesBaja && mesBaja < mesActual) {
+            pendientesParaMes1 += (f.importe || 0) * (1 - pct / 100);
+        } else if (mesBaja === mesActual) {
+            pendientesParaMes1 += (f.importe || 0);
+            if (pct > 0) bajasParaMes1 += (f.importe || 0) * (pct / 100);
+        } else {
+            pendientesParaMes1 += (f.importe || 0);
         }
     });
-    return agenda;
+
+    return { correccionCajaInicial, pendientesParaMes1, bajasParaMes1 };
 }
 
 // Tasa de descomisión efectiva histórica, ponderada por importe: aproxima qué % del
@@ -261,18 +284,22 @@ function calcularProyeccion() {
     const grossBurnProyectado = [];
     const descomisionesProyectadas = [];
 
-    let cajaActual = datosActuales.caja_disponible;
     let ventasBase = datosActuales.ventas_ultimo_mes;
     let gastosBase = datosActuales.gastos_ultimo_mes;
 
-    // --- Descomisión (Fase 6) ---
+    // --- Descomisión y arranque de la proyección (mismo modelo que Análisis Detallado) ---
     const detalle = datosActuales.detalleTransacciones || [];
     const comercializadoras = datosActuales.comercializadoras;
-    const ultimoMesHistorico = _obtenerUltimoMes(detalle);
-    const agendaHistorica = construirAgendaDescomisionHistorica(detalle, comercializadoras, ultimoMesHistorico);
+    const mesActual = _obtenerUltimoMes(detalle); // último mes con datos reales; el Mes 1 es el siguiente
+    const ajustesInicio = calcularAjustesInicioProyeccion(detalle, comercializadoras, mesActual);
     const tasaDescomisionEfectiva = calcularTasaDescomisionEfectiva(detalle, comercializadoras);
     const churnFraccion = (datosActuales.churn_rate || 0) / 100;
     const descomisionSimuladaPendiente = {}; // { indiceMes: monto }, se va generando mes a mes
+
+    // La Caja Disponible de partida se corrige por las descomisiones ya conocidas (efectivas)
+    // de ventas cobradas dadas de baja en un mes ya cerrado — igual que en Pilares se resta del
+    // Ingreso (cobrado) real del mes actual.
+    let cajaActual = datosActuales.caja_disponible - ajustesInicio.correccionCajaInicial;
 
     // Calcular proyección para 12 meses
     for (let i = 1; i <= 12; i++) {
@@ -300,18 +327,24 @@ function calcularProyeccion() {
             
             ingresosMes = numComerciales * ventasComercial * ticketMedioCom;
         }
-        
+
+        // El Mes 1 es el mes siguiente a mesActual: ahí "aterrizan" las ventas pendientes
+        // que ya eran conocidas (de meses anteriores o del propio mesActual), netas de su
+        // descomisión si corresponde — mismo criterio que "se reflejará el mes siguiente"
+        // en Análisis Detallado.
+        if (i === 1) ingresosMes += ajustesInicio.pendientesParaMes1;
+
         ingresosProyectados.push(ingresosMes);
-        
+
         // 2. PROYECCIÓN DE GASTOS
         gastosBase = gastosBase * (1 + incrementoGastos / 100);
         const gastosMes = gastosBase;
         gastosProyectados.push(gastosMes);
 
-        // 2b. DESCOMISIÓN DEL MES (Fase 6): histórica (bajas ya registradas en el Excel)
-        // + simulada (bajas futuras estimadas a partir del Churn Rate sobre las ventas
-        // proyectadas de meses anteriores).
-        let descomisionMes = agendaHistorica[i] || 0;
+        // 2b. DESCOMISIÓN DEL MES: las bajas ya conocidas de mesActual (previsualizadas como
+        // "Bajas Proyectadas" en Análisis Detallado) se restan aquí en el Mes 1 + la
+        // descomisión simulada por churn futuro sobre las ventas proyectadas de meses previos.
+        let descomisionMes = (i === 1) ? ajustesInicio.bajasParaMes1 : 0;
         descomisionMes += descomisionSimuladaPendiente[i] || 0;
         descomisionesProyectadas.push(descomisionMes);
 
