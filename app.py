@@ -60,10 +60,11 @@ NOMBRES_DEFAULT = {
 }
 
 # ============================================================================
-# COMERCIALIZADORAS (config. por el usuario: tarifas, comisiones y descomisión)
+# COMERCIALIZADORAS (config. por el usuario: liquidación y descomisión, por comercializadora)
 # ============================================================================
-# Cada tarifa: {comercializadora, tarifa, comision, descomision: [{periodo, porcentaje}, ...]}
-# Placas solares / alarmas no tienen descomisión: {comercializadora, tarifa, comision}
+# Cada comercializadora: {comercializadora, liquidacion: [dia1, dia2, dia3], descomision: [{periodo, porcentaje}, ...]}
+# liquidacion: hasta 3 días del mes en que paga; vacío/sin especificar = día 1 del mes siguiente.
+# Placas solares / alarmas no tienen descomisión: {comercializadora, liquidacion}
 COMERCIALIZADORAS_DEFAULT = {
     'energia': {'luz': [], 'gas': []},
     'telefonia': [],

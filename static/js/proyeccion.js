@@ -91,9 +91,9 @@ function _parsearPeriodoADias(texto) {
     return numero * 30;
 }
 
-function _buscarPorcentajeDescomision(tarifaConfig, diasTranscurridos) {
-    if (!tarifaConfig || !tarifaConfig.descomision || diasTranscurridos == null) return 0;
-    const tramos = tarifaConfig.descomision
+function _buscarPorcentajeDescomision(config, diasTranscurridos) {
+    if (!config || !config.descomision || diasTranscurridos == null) return 0;
+    const tramos = config.descomision
         .map(t => ({ dias: _parsearPeriodoADias(t.periodo), porcentaje: parseFloat(t.porcentaje) || 0 }))
         .filter(t => t.dias != null)
         .sort((a, b) => a.dias - b.dias);
@@ -116,11 +116,15 @@ function _normalizarCategoriaVenta(valor) {
     return valor;
 }
 
-function _buscarTarifaConfig(comercializadoras, venta) {
+// Busca, en la config de comercializadoras, la comercializadora de una venta
+// concreta (por sector y luz/gas). La Liquidación y la Descomisión se
+// configuran por comercializadora (ya no por tarifa). Misma lógica que en
+// Pilares, duplicada aquí porque pilares.js y proyeccion.js son archivos
+// separados.
+function _buscarConfigComercializadora(comercializadoras, venta) {
     if (!comercializadoras) return null;
     const nombreCom = (venta.comercializadora || '').trim().toLowerCase();
-    const nombreTarifa = (venta.tarifa || '').trim().toLowerCase();
-    if (!nombreCom || !nombreTarifa) return null;
+    if (!nombreCom) return null;
 
     const categoria = _normalizarCategoriaVenta(venta.categoria);
     let lista = [];
@@ -133,10 +137,7 @@ function _buscarTarifaConfig(comercializadoras, venta) {
         return null; // Placas Solares / Alarmas: sin descomisión
     }
 
-    return lista.find(t =>
-        (t.comercializadora || '').trim().toLowerCase() === nombreCom &&
-        (t.tarifa || '').trim().toLowerCase() === nombreTarifa
-    ) || null;
+    return lista.find(c => (c.comercializadora || '').trim().toLowerCase() === nombreCom) || null;
 }
 
 function _diasEntre(fechaIni, fechaFin) {
@@ -146,10 +147,38 @@ function _diasEntre(fechaIni, fechaFin) {
     return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
-function _sumarMeses(yyyyMM, n) {
-    const [y, m] = yyyyMM.split('-').map(Number);
-    const fecha = new Date(y, (m - 1) + n, 1);
-    return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+function _diaValidoDelMes(year, month, day) {
+    // Clampa al último día del mes si el día configurado no existe en ese mes (ej. 31 en febrero).
+    const ultimoDia = new Date(year, month + 1, 0).getDate();
+    return new Date(year, month, Math.min(day, ultimoDia));
+}
+
+function _formatearFecha(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Fecha de liquidación: el primer día configurado (hasta 3 por comercializadora)
+// que cae en o después de `fechaRef`; si ninguno cae ya en ese mes, el primero
+// del mes siguiente. Sin días configurados: por defecto, día 1 del mes
+// siguiente a `fechaRef`. Misma lógica que en Pilares.
+function _calcularFechaLiquidacion(fechaRef, diasLiquidacion) {
+    if (!fechaRef) return null;
+    const fecha = new Date(fechaRef + 'T00:00:00');
+    if (isNaN(fecha)) return null;
+
+    const diasValidos = Array.from(new Set((Array.isArray(diasLiquidacion) ? diasLiquidacion : [])
+        .map(d => parseInt(d, 10))
+        .filter(d => !isNaN(d) && d >= 1 && d <= 31))).sort((a, b) => a - b);
+
+    const y = fecha.getFullYear(), m = fecha.getMonth(), diaRef = fecha.getDate();
+
+    if (diasValidos.length === 0) {
+        return _formatearFecha(_diaValidoDelMes(y, m + 1, 1));
+    }
+    for (const d of diasValidos) {
+        if (d >= diaRef) return _formatearFecha(_diaValidoDelMes(y, m, d));
+    }
+    return _formatearFecha(_diaValidoDelMes(y, m + 1, diasValidos[0]));
 }
 
 function _diferenciaMesesEntre(yyyyMMa, yyyyMMb) {
@@ -165,22 +194,25 @@ function _obtenerUltimoMes(detalle) {
 }
 
 // Agenda de descomisión histórica: ventas con fecha de baja YA registrada en el Excel.
+// El % de descomisión se aplica sobre el Importe de la venta (no sobre la comisión
+// comercial "Com Eur Pagar", que es un concepto distinto). Se ubica en la primera
+// fecha de liquidación (según la config de la comercializadora) a partir de la baja.
 // Devuelve { indiceMesProyectado (1-12): montoADescontarEseMes }
 function construirAgendaDescomisionHistorica(detalle, comercializadoras, ultimoMesHistorico) {
     const agenda = {};
     (detalle || []).forEach(venta => {
-        if (!venta.fecha_baja || !(venta.comision_eur > 0)) return;
-        const tarifaConfig = _buscarTarifaConfig(comercializadoras, venta);
-        if (!tarifaConfig) return;
+        if (!venta.fecha_baja || !(venta.importe > 0)) return;
+        const config = _buscarConfigComercializadora(comercializadoras, venta);
+        if (!config) return;
 
         const fechaRef = venta.fecha_activacion || venta.fecha;
         const dias = _diasEntre(fechaRef, venta.fecha_baja);
-        const pct = _buscarPorcentajeDescomision(tarifaConfig, dias);
+        const pct = _buscarPorcentajeDescomision(config, dias);
         if (!pct) return;
 
-        const monto = venta.comision_eur * (pct / 100);
-        const mesBaja = venta.fecha_baja.slice(0, 7);
-        const mesDescomision = _sumarMeses(mesBaja, 1);
+        const monto = venta.importe * (pct / 100);
+        const fechaAjuste = _calcularFechaLiquidacion(venta.fecha_baja, config.liquidacion);
+        const mesDescomision = fechaAjuste.slice(0, 7);
         const offset = _diferenciaMesesEntre(ultimoMesHistorico, mesDescomision);
 
         if (offset >= 1 && offset <= 12) {
@@ -190,32 +222,22 @@ function construirAgendaDescomisionHistorica(detalle, comercializadoras, ultimoM
     return agenda;
 }
 
-// Ratio histórico comisión/venta, para traducir ingresos proyectados en comisión proyectada
-function calcularRatioComisionSobreVentas(detalle) {
-    let totalImporte = 0, totalComision = 0;
-    (detalle || []).forEach(v => {
-        totalImporte += (v.importe || 0);
-        totalComision += (v.comision_eur || 0);
-    });
-    return totalImporte > 0 ? (totalComision / totalImporte) : 0;
-}
-
-// Tasa de descomisión efectiva histórica, ponderada por comisión: aproxima qué % de la
-// comisión de una venta "media" se perdería si el cliente causara baja de inmediato.
-// Simplificación explícita: aproxima "% de clientes que causan baja" por "% de ingresos
-// vía comisión en riesgo", ya que no se puede saber por anticipado qué ventas futuras
-// concretas causarán baja ni en qué tarifa/comercializadora.
+// Tasa de descomisión efectiva histórica, ponderada por importe: aproxima qué % del
+// importe de una venta "media" se perdería si el cliente causara baja de inmediato.
+// Simplificación explícita: aproxima "% de clientes que causan baja" por "% de
+// ingresos en riesgo", ya que no se puede saber por anticipado qué ventas futuras
+// concretas causarán baja ni con qué comercializadora.
 function calcularTasaDescomisionEfectiva(detalle, comercializadoras) {
-    let totalComision = 0, totalDescomisionPotencial = 0;
+    let totalImporte = 0, totalDescomisionPotencial = 0;
     (detalle || []).forEach(venta => {
-        if (!(venta.comision_eur > 0)) return;
-        const tarifaConfig = _buscarTarifaConfig(comercializadoras, venta);
-        if (!tarifaConfig) return;
-        const pct = _buscarPorcentajeDescomision(tarifaConfig, 0);
-        totalComision += venta.comision_eur;
-        totalDescomisionPotencial += venta.comision_eur * (pct / 100);
+        if (!(venta.importe > 0)) return;
+        const config = _buscarConfigComercializadora(comercializadoras, venta);
+        if (!config) return;
+        const pct = _buscarPorcentajeDescomision(config, 0);
+        totalImporte += venta.importe;
+        totalDescomisionPotencial += venta.importe * (pct / 100);
     });
-    return totalComision > 0 ? (totalDescomisionPotencial / totalComision) : 0;
+    return totalImporte > 0 ? (totalDescomisionPotencial / totalImporte) : 0;
 }
 
 function calcularProyeccion() {
@@ -248,7 +270,6 @@ function calcularProyeccion() {
     const comercializadoras = datosActuales.comercializadoras;
     const ultimoMesHistorico = _obtenerUltimoMes(detalle);
     const agendaHistorica = construirAgendaDescomisionHistorica(detalle, comercializadoras, ultimoMesHistorico);
-    const ratioComisionVentas = calcularRatioComisionSobreVentas(detalle);
     const tasaDescomisionEfectiva = calcularTasaDescomisionEfectiva(detalle, comercializadoras);
     const churnFraccion = (datosActuales.churn_rate || 0) / 100;
     const descomisionSimuladaPendiente = {}; // { indiceMes: monto }, se va generando mes a mes
@@ -294,13 +315,14 @@ function calcularProyeccion() {
         descomisionMes += descomisionSimuladaPendiente[i] || 0;
         descomisionesProyectadas.push(descomisionMes);
 
-        // Las ventas proyectadas de ESTE mes generan comisión; una fracción de esos
-        // clientes (según el Churn Rate) causará baja, y de esa comisión se recupera
-        // (descomisiona) la tasa efectiva histórica, aplicada el mes siguiente.
+        // Las ventas proyectadas de ESTE mes generan ingresos; una fracción de esos
+        // clientes (según el Churn Rate) causará baja, y de ese importe se recupera
+        // (descomisiona) la tasa efectiva histórica. Simplificación: al no conocer la
+        // comercializadora de ventas futuras, se aplica siempre al mes siguiente (no
+        // se puede calcular una fecha de liquidación exacta sin esa comercializadora).
         if (i < 12) {
-            const comisionMes = ingresosMes * ratioComisionVentas;
-            const comisionEnRiesgo = comisionMes * churnFraccion;
-            const descomisionSimuladaFutura = comisionEnRiesgo * tasaDescomisionEfectiva;
+            const importeEnRiesgo = ingresosMes * churnFraccion;
+            const descomisionSimuladaFutura = importeEnRiesgo * tasaDescomisionEfectiva;
             descomisionSimuladaPendiente[i + 1] = (descomisionSimuladaPendiente[i + 1] || 0) + descomisionSimuladaFutura;
         }
 

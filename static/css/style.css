@@ -381,6 +381,9 @@ body {
 }
 .tabla-comercializadoras td { padding: 8px 10px; }
 
+.celda-liquidacion { display: flex; gap: 6px; }
+.celda-liquidacion input { width: 60px; text-align: center; }
+
 .btn-add-row, .btn-add-tramo {
     background: #10b981;
     color: white;
@@ -530,6 +533,8 @@ body {
     justify-content: space-between;
     max-width: 320px;
 }
+
+.mensaje-ventas-cobrar strong.monto-negativo { color: #ef4444; }
 
 .toggle-btn {
     padding: 4px 10px;

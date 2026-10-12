@@ -582,21 +582,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ----------------------------------------------------------------------------
 // Caja Efectiva (solo COBRADO) vs Caja Proyectada (COBRADO + PENDIENTE, ubicado
-// en su fecha de liquidación = fecha de activación + días de Liquidación de la
-// tarifa configurada en Comercializadoras). Una venta PENDIENTE cuya fecha de
-// baja es anterior a su fecha de liquidación nunca llega a cobrarse y se excluye
-// por completo de la proyección.
+// en su fecha de liquidación). La Liquidación de cada comercializadora define
+// hasta 3 días del mes en los que paga (p. ej. 15 y 30); si no se configura
+// ninguno, por defecto se cobra el día 1 del mes siguiente a la fecha base.
+// Si una venta tiene fecha de baja, se aplica la Descomisión configurada
+// (tramos por tiempo transcurrido desde la activación) sobre el Importe:
+//   - PENDIENTE que se da de baja ANTES de su liquidación: solo se cobra el
+//     (100% - % descomisionado) en su fecha de liquidación normal.
+//   - Ya COBRADA (o PENDIENTE que se da de baja DESPUÉS de liquidarse): el
+//     importe ya contado se corrige restando el % descomisionado, ubicado en
+//     la siguiente fecha de liquidación tras la fecha de baja (sin tocar el
+//     mes original en el que ya se contó el ingreso, para no restar dos veces).
 // ----------------------------------------------------------------------------
 
-function _sumarDiasFecha(fechaStr, dias) {
-    if (!fechaStr) return null;
-    const d = new Date(fechaStr + 'T00:00:00');
-    if (isNaN(d)) return null;
-    d.setDate(d.getDate() + (parseFloat(dias) || 0));
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+// Convierte el texto libre de un tramo de descomisión ("2 meses", "15 días"...)
+// a días. Duplicada de proyeccion.js (archivos separados).
+function _parsearPeriodoADias(texto) {
+    if (!texto) return null;
+    const t = String(texto).toLowerCase();
+    const match = t.match(/(\d+(?:[.,]\d+)?)/);
+    if (!match) return null;
+    const numero = parseFloat(match[1].replace(',', '.'));
+    if (isNaN(numero)) return null;
+    if (t.includes('año')) return numero * 365;
+    if (t.includes('seman')) return numero * 7;
+    if (t.includes('día') || t.includes('dia')) return numero;
+    return numero * 30;
+}
+
+// % de descomisión aplicable según los días transcurridos entre activación y
+// baja, según los tramos configurados para la comercializadora de la venta.
+function _buscarPorcentajeDescomision(config, diasTranscurridos) {
+    if (!config || !config.descomision || diasTranscurridos == null) return 0;
+    const tramos = config.descomision
+        .map(t => ({ dias: _parsearPeriodoADias(t.periodo), porcentaje: parseFloat(t.porcentaje) || 0 }))
+        .filter(t => t.dias != null)
+        .sort((a, b) => a.dias - b.dias);
+    for (const t of tramos) {
+        if (diasTranscurridos <= t.dias) return t.porcentaje;
+    }
+    return 0; // fuera de todos los tramos configurados: ya no hay descomisión
+}
+
+function _diasEntre(fechaIni, fechaFin) {
+    const a = new Date(fechaIni);
+    const b = new Date(fechaFin);
+    if (isNaN(a) || isNaN(b)) return null;
+    return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
 function _bucketDeFecha(fecha, granularidad) {
@@ -618,14 +650,15 @@ function _normalizarCategoriaVenta(valor) {
     return valor;
 }
 
-// Busca, en la config de comercializadoras, la tarifa/paquete de una venta concreta
-// (por sector, luz/gas, comercializadora y tarifa). Misma lógica que en Proyección
-// de Caja, duplicada aquí porque pilares.js y proyeccion.js son archivos separados.
-function _buscarTarifaConfigPilares(comercializadoras, venta) {
+// Busca, en la config de comercializadoras, la comercializadora de una venta
+// concreta (por sector y luz/gas). La Liquidación y la Descomisión se
+// configuran por comercializadora (ya no por tarifa). Misma lógica que en
+// Proyección de Caja, duplicada aquí porque pilares.js y proyeccion.js son
+// archivos separados.
+function _buscarConfigComercializadora(comercializadoras, venta) {
     if (!comercializadoras) return null;
     const nombreCom = (venta.comercializadora || '').trim().toLowerCase();
-    const nombreTarifa = (venta.tarifa || '').trim().toLowerCase();
-    if (!nombreCom || !nombreTarifa) return null;
+    if (!nombreCom) return null;
 
     const categoria = _normalizarCategoriaVenta(venta.categoria);
     let lista = [];
@@ -642,23 +675,47 @@ function _buscarTarifaConfigPilares(comercializadoras, venta) {
         return null;
     }
 
-    return lista.find(t =>
-        (t.comercializadora || '').trim().toLowerCase() === nombreCom &&
-        (t.tarifa || '').trim().toLowerCase() === nombreTarifa
-    ) || null;
+    return lista.find(c => (c.comercializadora || '').trim().toLowerCase() === nombreCom) || null;
 }
 
-function _obtenerDiasLiquidacion(comercializadoras, venta) {
-    const tarifaConfig = _buscarTarifaConfigPilares(comercializadoras, venta);
-    if (!tarifaConfig || tarifaConfig.liquidacion == null || tarifaConfig.liquidacion === '') return 0;
-    const dias = parseFloat(tarifaConfig.liquidacion);
-    return isNaN(dias) ? 0 : dias;
+function _diaValidoDelMes(year, month, day) {
+    // Clampa al último día del mes si el día configurado no existe en ese mes (ej. 31 en febrero).
+    const ultimoDia = new Date(year, month + 1, 0).getDate();
+    return new Date(year, month, Math.min(day, ultimoDia));
+}
+
+function _formatearFecha(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Fecha de liquidación: el primer día configurado (hasta 3 por comercializadora)
+// que cae en o después de `fechaRef`; si ninguno cae ya en ese mes, el primero
+// del mes siguiente. Sin días configurados: por defecto, día 1 del mes
+// siguiente a `fechaRef`.
+function _calcularFechaLiquidacion(fechaRef, diasLiquidacion) {
+    if (!fechaRef) return null;
+    const fecha = new Date(fechaRef + 'T00:00:00');
+    if (isNaN(fecha)) return null;
+
+    const diasValidos = Array.from(new Set((Array.isArray(diasLiquidacion) ? diasLiquidacion : [])
+        .map(d => parseInt(d, 10))
+        .filter(d => !isNaN(d) && d >= 1 && d <= 31))).sort((a, b) => a - b);
+
+    const y = fecha.getFullYear(), m = fecha.getMonth(), diaRef = fecha.getDate();
+
+    if (diasValidos.length === 0) {
+        return _formatearFecha(_diaValidoDelMes(y, m + 1, 1));
+    }
+    for (const d of diasValidos) {
+        if (d >= diaRef) return _formatearFecha(_diaValidoDelMes(y, m, d));
+    }
+    return _formatearFecha(_diaValidoDelMes(y, m + 1, diasValidos[0]));
 }
 
 // Calcula, para una granularidad dada ('mensual'|'diario'), las series de Ingresos
 // cobrados, Gastos, Caja Efectiva, Ingresos Proyectados y Caja Proyectada, más los
-// importes PENDIENTES cuya fecha de liquidación cae fuera del rango visible (se
-// agrupan siempre por mes, independientemente de la granularidad del gráfico).
+// importes/correcciones que caen fuera del rango visible (se agrupan siempre por
+// mes, independientemente de la granularidad del gráfico).
 function calcularSeriesCombinado(granularidad) {
     const cajaInicial = (pilaresActual && pilaresActual.cash_management && pilaresActual.cash_management.caja_inicial) || 0;
 
@@ -671,34 +728,82 @@ function calcularSeriesCombinado(granularidad) {
     const ingresosCobrados = {};
     const ingresosProyectados = {};
     const gastosPorBucket = {};
-    const pendientesFueraDeRango = {}; // { 'YYYY-MM': monto }
+    const ajustesFueraDeRango = {}; // { 'YYYY-MM': monto neto (puede ser negativo) }
+
+    // `mapas` puede traer uno o varios mapas (ingresosCobrados y/o ingresosProyectados):
+    // si el bucket cae fuera del rango visible, el ajuste se registra UNA sola vez en
+    // ajustesFueraDeRango, nunca una vez por cada mapa (si no, un mismo evento que afecta
+    // a dos series se contaría doble al quedar fuera de rango).
+    function _aplicar(mapas, bucket, monto) {
+        if (!bucket || !monto) return;
+        if (bucketsDisponibles.has(bucket)) {
+            mapas.forEach(mapa => { mapa[bucket] = (mapa[bucket] || 0) + monto; });
+        } else {
+            const mes = bucket.slice(0, 7);
+            ajustesFueraDeRango[mes] = (ajustesFueraDeRango[mes] || 0) + monto;
+        }
+    }
 
     detalleGlobal.forEach(f => {
-        const bucketPropio = _bucketDeFecha(f.fecha, granularidad);
+        const config = _buscarConfigComercializadora(comercializadorasActual, f);
+        const fechaBase = f.fecha_activacion || f.fecha;
+
         if (!f.es_pendiente) {
+            // Ya cobrada: cuenta íntegro en su propia fecha, en ambas series.
+            const bucketPropio = _bucketDeFecha(f.fecha, granularidad);
             if (bucketPropio) {
                 ingresosCobrados[bucketPropio] = (ingresosCobrados[bucketPropio] || 0) + (f.importe || 0);
                 ingresosProyectados[bucketPropio] = (ingresosProyectados[bucketPropio] || 0) + (f.importe || 0);
+            }
+
+            // Si se da de baja, se corrige restando el % de descomisión en la
+            // siguiente fecha de liquidación tras la baja (no en el mes original,
+            // para no restar dos veces el mismo importe).
+            if (f.fecha_baja && fechaBase) {
+                const dias = _diasEntre(fechaBase, f.fecha_baja);
+                const pct = _buscarPorcentajeDescomision(config, dias);
+                if (pct > 0) {
+                    const monto = (f.importe || 0) * (pct / 100);
+                    const fechaAjuste = _calcularFechaLiquidacion(f.fecha_baja, config && config.liquidacion);
+                    const bucketAjuste = _bucketDeFecha(fechaAjuste, granularidad);
+                    _aplicar([ingresosCobrados, ingresosProyectados], bucketAjuste, -monto);
+                }
             }
             return;
         }
 
         // Venta PENDIENTE: se ubica en su fecha de liquidación, no en su fecha de venta.
-        const fechaBase = f.fecha_activacion || f.fecha;
         if (!fechaBase) return;
-        const dias = _obtenerDiasLiquidacion(comercializadorasActual, f);
-        const fechaLiquidacion = _sumarDiasFecha(fechaBase, dias);
+        const fechaLiquidacion = _calcularFechaLiquidacion(fechaBase, config && config.liquidacion);
         if (!fechaLiquidacion) return;
-
-        // Si causó baja ANTES de liquidarse, la comercializadora nunca paga esa venta.
-        if (f.fecha_baja && f.fecha_baja < fechaLiquidacion) return;
-
         const bucketLiquidacion = _bucketDeFecha(fechaLiquidacion, granularidad);
-        if (bucketsDisponibles.has(bucketLiquidacion)) {
-            ingresosProyectados[bucketLiquidacion] = (ingresosProyectados[bucketLiquidacion] || 0) + (f.importe || 0);
-        } else {
-            const mesLiquidacion = fechaLiquidacion.slice(0, 7);
-            pendientesFueraDeRango[mesLiquidacion] = (pendientesFueraDeRango[mesLiquidacion] || 0) + (f.importe || 0);
+
+        const bajaAntesDeLiquidar = f.fecha_baja && f.fecha_baja < fechaLiquidacion;
+
+        if (bajaAntesDeLiquidar) {
+            // Solo se cobra la parte NO descomisionada, en su fecha de liquidación normal.
+            const dias = _diasEntre(fechaBase, f.fecha_baja);
+            const pct = _buscarPorcentajeDescomision(config, dias);
+            const montoNeto = (f.importe || 0) * (1 - pct / 100);
+            _aplicar([ingresosProyectados], bucketLiquidacion, montoNeto);
+            return;
+        }
+
+        // Se cobra íntegro en su fecha de liquidación (proyectado).
+        _aplicar([ingresosProyectados], bucketLiquidacion, f.importe || 0);
+
+        // Si se da de baja DESPUÉS de haberse liquidado, se corrige igual que una
+        // venta ya cobrada. Solo afecta a Ingresos Proyectados: esta venta nunca
+        // llegó a contarse como históricamente cobrada.
+        if (f.fecha_baja) {
+            const dias = _diasEntre(fechaBase, f.fecha_baja);
+            const pct = _buscarPorcentajeDescomision(config, dias);
+            if (pct > 0) {
+                const monto = (f.importe || 0) * (pct / 100);
+                const fechaAjuste = _calcularFechaLiquidacion(f.fecha_baja, config && config.liquidacion);
+                const bucketAjuste = _bucketDeFecha(fechaAjuste, granularidad);
+                _aplicar([ingresosProyectados], bucketAjuste, -monto);
+            }
         }
     });
 
@@ -731,14 +836,14 @@ function calcularSeriesCombinado(granularidad) {
         cajaEfectiva: cajaEfectivaArr,
         ingresosProyectados: ingresosProyectadosArr,
         cajaProyectada: cajaProyectadaArr,
-        pendientesFueraDeRango
+        ajustesFueraDeRango
     };
 }
 
-function renderMensajeVentasPorCobrar(pendientesFueraDeRango) {
+function renderMensajeVentasPorCobrar(ajustesFueraDeRango) {
     const el = document.getElementById('mensajeVentasPorCobrar');
     if (!el) return;
-    const meses = Object.keys(pendientesFueraDeRango || {}).sort();
+    const meses = Object.keys(ajustesFueraDeRango || {}).sort();
 
     if (!proyectadoActivo || meses.length === 0) {
         el.style.display = 'none';
@@ -749,11 +854,12 @@ function renderMensajeVentasPorCobrar(pendientesFueraDeRango) {
     const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const filas = meses.map(m => {
         const [y, mm] = m.split('-').map(Number);
-        const monto = pendientesFueraDeRango[m];
-        return `<div class="fila-mes-cobrar"><span>${nombresMes[mm - 1]} ${y}</span><strong>${monto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>`;
+        const monto = ajustesFueraDeRango[m];
+        const claseMonto = monto < 0 ? ' monto-negativo' : '';
+        return `<div class="fila-mes-cobrar"><span>${nombresMes[mm - 1]} ${y}</span><strong class="${claseMonto}">${monto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>`;
     }).join('');
 
-    el.innerHTML = `<strong class="titulo-ventas-cobrar">Ventas por Cobrar</strong>${filas}`;
+    el.innerHTML = `<strong class="titulo-ventas-cobrar">Ventas por Cobrar / Correcciones</strong>${filas}`;
     el.style.display = 'block';
 }
 
@@ -773,7 +879,7 @@ function renderGraficoCombinado() {
     const titulo = document.getElementById('tituloChartCombinado');
     if (titulo) titulo.textContent = esDiario ? 'Ingresos, Gastos y Evolución de Caja (diario)' : 'Ingresos, Gastos y Evolución de Caja';
 
-    renderMensajeVentasPorCobrar(datos.pendientesFueraDeRango);
+    renderMensajeVentasPorCobrar(datos.ajustesFueraDeRango);
 
     if (!datos.buckets.length) {
         el.innerHTML = '<p style="padding:20px;color:#6b7280;">Sin datos.</p>';
@@ -1524,18 +1630,21 @@ function renderizarTablaTarifas(path, tbodyId, tieneDescomision) {
 
     let html = '';
     arr.forEach((item, i) => {
+        const dias = item.liquidacion || [];
         html += `
         <tr class="fila-tarifa">
             <td><input type="text" data-campo="comercializadora" value="${item.comercializadora || ''}" placeholder="Ej. Naturgy"></td>
-            <td><input type="text" data-campo="tarifa" value="${item.tarifa || ''}" placeholder="${tieneDescomision ? 'Ej. Fija 24h' : 'Paquete'}"></td>
-            <td><input type="number" step="0.01" data-campo="comision" value="${item.comision != null ? item.comision : ''}"></td>
-            <td><input type="number" step="1" min="0" data-campo="liquidacion" value="${item.liquidacion != null ? item.liquidacion : ''}" placeholder="Ej. 30"></td>
+            <td class="celda-liquidacion">
+                <input type="number" step="1" min="1" max="31" data-campo="liquidacion1" value="${dias[0] != null ? dias[0] : ''}" placeholder="Día">
+                <input type="number" step="1" min="1" max="31" data-campo="liquidacion2" value="${dias[1] != null ? dias[1] : ''}" placeholder="Día">
+                <input type="number" step="1" min="1" max="31" data-campo="liquidacion3" value="${dias[2] != null ? dias[2] : ''}" placeholder="Día">
+            </td>
             ${tieneDescomision ? `<td><button class="btn-toggle-descomision" onclick="toggleDescomision('${path}', ${i})">Descomisión (${(item.descomision || []).length})</button></td>` : ''}
             <td><button class="btn-remove-row" onclick="eliminarFilaTarifa('${path}', ${i})">✕</button></td>
         </tr>`;
         if (tieneDescomision) {
             html += `<tr class="fila-descomision-detalle" id="descomision-${idBase}-${i}" style="display:none;">
-                <td colspan="6">${renderizarTramos(path, i)}</td>
+                <td colspan="4">${renderizarTramos(path, i)}</td>
             </tr>`;
         }
     });
@@ -1571,13 +1680,13 @@ function sincronizarDesdeDOM() {
         filas.forEach((fila, i) => {
             if (!arr[i]) return;
             const inputComercializadora = fila.querySelector('[data-campo="comercializadora"]');
-            const inputTarifa = fila.querySelector('[data-campo="tarifa"]');
-            const inputComision = fila.querySelector('[data-campo="comision"]');
-            const inputLiquidacion = fila.querySelector('[data-campo="liquidacion"]');
             arr[i].comercializadora = inputComercializadora ? inputComercializadora.value : arr[i].comercializadora;
-            arr[i].tarifa = inputTarifa ? inputTarifa.value : arr[i].tarifa;
-            arr[i].comision = inputComision ? (parseFloat(inputComision.value) || 0) : arr[i].comision;
-            arr[i].liquidacion = inputLiquidacion ? (parseFloat(inputLiquidacion.value) || 0) : arr[i].liquidacion;
+
+            const diasInputs = ['liquidacion1', 'liquidacion2', 'liquidacion3']
+                .map(campo => fila.querySelector(`[data-campo="${campo}"]`));
+            arr[i].liquidacion = diasInputs
+                .map(inp => (inp && inp.value !== '' ? parseInt(inp.value, 10) : null))
+                .filter(d => d != null && !isNaN(d));
 
             if (spec.tieneDescomision) {
                 const detalle = document.getElementById(`descomision-${idBase}-${i}`);
@@ -1595,7 +1704,7 @@ function sincronizarDesdeDOM() {
 
 function añadirFilaTarifa(path) {
     sincronizarDesdeDOM();
-    getArraySector(path).push({ comercializadora: '', tarifa: '', comision: 0, liquidacion: 0, descomision: [] });
+    getArraySector(path).push({ comercializadora: '', liquidacion: [], descomision: [] });
     renderizarTodasLasTablas();
 }
 
