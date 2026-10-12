@@ -99,7 +99,10 @@ function handleFile(file) {
         return;
     }
     
-    const sector = document.querySelector('input[name="sector"]:checked').value;
+    // Sector fijo en "tecnologia": el selector se quitó (los umbrales por sector
+    // requerirían parametrizar datos de referencia para cada uno), y todos los cálculos
+    // y correcciones hechos hasta ahora se hicieron con este sector seleccionado.
+    const sector = 'tecnologia';
     sectorActual = sector;
     const formData = new FormData();
     formData.append('file', file);

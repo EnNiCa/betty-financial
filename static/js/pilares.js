@@ -62,9 +62,10 @@ function procesarArchivo(e) {
     const formData = new FormData();
     formData.append('file', file);
     
-    // Obtener sector seleccionado
-    const sectorRadio = document.querySelector('input[name="sector"]:checked');
-    const sector = sectorRadio ? sectorRadio.value : 'otros';
+    // Sector fijo en "tecnologia": el selector se quitó (los umbrales por sector
+    // requerirían parametrizar datos de referencia para cada uno), y todos los cálculos
+    // y correcciones hechos hasta ahora se hicieron con este sector seleccionado.
+    const sector = 'tecnologia';
     formData.append('sector', sector);
     
     loading.style.display = 'flex';
