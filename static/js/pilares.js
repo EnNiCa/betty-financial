@@ -114,7 +114,7 @@ function mostrarPilares(data) {
     granularidadOpEx = 'mensual';
     proyectadoActivo = false;
     const btnProyectadoReset = document.getElementById('btnToggleProyectado');
-    if (btnProyectadoReset) btnProyectadoReset.classList.remove('active');
+    if (btnProyectadoReset) { btnProyectadoReset.classList.remove('active'); btnProyectadoReset.disabled = false; }
     document.querySelectorAll('.toggle-granularidad .toggle-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.modo === 'mensual');
     });
@@ -678,44 +678,24 @@ function _buscarConfigComercializadora(comercializadoras, venta) {
     return lista.find(c => (c.comercializadora || '').trim().toLowerCase() === nombreCom) || null;
 }
 
-function _diaValidoDelMes(year, month, day) {
-    // Clampa al último día del mes si el día configurado no existe en ese mes (ej. 31 en febrero).
-    const ultimoDia = new Date(year, month + 1, 0).getDate();
-    return new Date(year, month, Math.min(day, ultimoDia));
-}
-
-function _formatearFecha(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// Fecha de liquidación: el primer día configurado (hasta 3 por comercializadora)
-// que cae en o después de `fechaRef`; si ninguno cae ya en ese mes, el primero
-// del mes siguiente. Sin días configurados: por defecto, día 1 del mes
-// siguiente a `fechaRef`.
-function _calcularFechaLiquidacion(fechaRef, diasLiquidacion) {
-    if (!fechaRef) return null;
-    const fecha = new Date(fechaRef + 'T00:00:00');
-    if (isNaN(fecha)) return null;
-
-    const diasValidos = Array.from(new Set((Array.isArray(diasLiquidacion) ? diasLiquidacion : [])
-        .map(d => parseInt(d, 10))
-        .filter(d => !isNaN(d) && d >= 1 && d <= 31))).sort((a, b) => a - b);
-
-    const y = fecha.getFullYear(), m = fecha.getMonth(), diaRef = fecha.getDate();
-
-    if (diasValidos.length === 0) {
-        return _formatearFecha(_diaValidoDelMes(y, m + 1, 1));
-    }
-    for (const d of diasValidos) {
-        if (d >= diaRef) return _formatearFecha(_diaValidoDelMes(y, m, d));
-    }
-    return _formatearFecha(_diaValidoDelMes(y, m + 1, diasValidos[0]));
-}
-
 // Calcula, para una granularidad dada ('mensual'|'diario'), las series de Ingresos
-// cobrados, Gastos, Caja Efectiva, Ingresos Proyectados y Caja Proyectada, más los
-// importes/correcciones que caen fuera del rango visible (se agrupan siempre por
-// mes, independientemente de la granularidad del gráfico).
+// cobrados, Gastos y Caja Efectiva (datos REALES: nunca se corrigen, un mes ya
+// transcurrido se considera cerrado) y, solo para el MES ACTUAL (el último mes con
+// datos; la proyección no tiene sentido a nivel diario), Ingresos Proyectados, Caja
+// Proyectada y Bajas Proyectadas:
+//   - Ingresos Proyectados del mes actual = lo ya cobrado ESTE mes + las ventas
+//     PENDIENTES de meses anteriores (ya reflejadas aquí, no en su propio mes) -
+//     las Descomisiones de bajas de meses anteriores (de ventas cobradas o
+//     pendientes) que ya son un hecho conocido.
+//   - Una venta pendiente de un mes anterior que se dio de baja TAMBIÉN en un mes
+//     anterior se refleja ya neta de su descomisión (no se sabe un día exacto de
+//     liquidación: solo importa el mes).
+//   - Las bajas que ocurren EN el mes actual (de cualquier venta, cobrada o
+//     pendiente) no restan nada todavía: se muestran aparte como "Bajas
+//     Proyectadas", el importe que se restará el próximo mes cuando este mes pase
+//     a ser "anterior".
+//   - Si el mes actual es el primer mes con datos, no hay nada pendiente de antes:
+//     Ingresos/Caja Proyectada coinciden exactamente con lo Cobrado/Caja Efectiva.
 function calcularSeriesCombinado(granularidad) {
     const cajaInicial = (pilaresActual && pilaresActual.cash_management && pilaresActual.cash_management.caja_inicial) || 0;
 
@@ -723,111 +703,96 @@ function calcularSeriesCombinado(granularidad) {
     detalleGlobal.forEach(f => { const b = _bucketDeFecha(f.fecha, granularidad); if (b) bucketsSet.add(b); });
     detalleGastosGlobal.forEach(f => { const b = _bucketDeFecha(f.fecha, granularidad); if (b) bucketsSet.add(b); });
     const buckets = Array.from(bucketsSet).sort();
-    const bucketsDisponibles = new Set(buckets);
 
     const ingresosCobrados = {};
-    const ingresosProyectados = {};
     const gastosPorBucket = {};
-    const ajustesFueraDeRango = {}; // { 'YYYY-MM': monto neto (puede ser negativo) }
-
-    // `mapas` puede traer uno o varios mapas (ingresosCobrados y/o ingresosProyectados):
-    // si el bucket cae fuera del rango visible, el ajuste se registra UNA sola vez en
-    // ajustesFueraDeRango, nunca una vez por cada mapa (si no, un mismo evento que afecta
-    // a dos series se contaría doble al quedar fuera de rango).
-    function _aplicar(mapas, bucket, monto) {
-        if (!bucket || !monto) return;
-        if (bucketsDisponibles.has(bucket)) {
-            mapas.forEach(mapa => { mapa[bucket] = (mapa[bucket] || 0) + monto; });
-        } else {
-            const mes = bucket.slice(0, 7);
-            ajustesFueraDeRango[mes] = (ajustesFueraDeRango[mes] || 0) + monto;
-        }
-    }
 
     detalleGlobal.forEach(f => {
-        const config = _buscarConfigComercializadora(comercializadorasActual, f);
-        const fechaBase = f.fecha_activacion || f.fecha;
-
-        if (!f.es_pendiente) {
-            // Ya cobrada: cuenta íntegro en su propia fecha, en ambas series.
-            const bucketPropio = _bucketDeFecha(f.fecha, granularidad);
-            if (bucketPropio) {
-                ingresosCobrados[bucketPropio] = (ingresosCobrados[bucketPropio] || 0) + (f.importe || 0);
-                ingresosProyectados[bucketPropio] = (ingresosProyectados[bucketPropio] || 0) + (f.importe || 0);
-            }
-
-            // Si se da de baja, se corrige restando el % de descomisión en la
-            // siguiente fecha de liquidación tras la baja (no en el mes original,
-            // para no restar dos veces el mismo importe).
-            if (f.fecha_baja && fechaBase) {
-                const dias = _diasEntre(fechaBase, f.fecha_baja);
-                const pct = _buscarPorcentajeDescomision(config, dias);
-                if (pct > 0) {
-                    const monto = (f.importe || 0) * (pct / 100);
-                    const fechaAjuste = _calcularFechaLiquidacion(f.fecha_baja, config && config.liquidacion);
-                    const bucketAjuste = _bucketDeFecha(fechaAjuste, granularidad);
-                    _aplicar([ingresosCobrados, ingresosProyectados], bucketAjuste, -monto);
-                }
-            }
-            return;
-        }
-
-        // Venta PENDIENTE: se ubica en su fecha de liquidación, no en su fecha de venta.
-        if (!fechaBase) return;
-        const fechaLiquidacion = _calcularFechaLiquidacion(fechaBase, config && config.liquidacion);
-        if (!fechaLiquidacion) return;
-        const bucketLiquidacion = _bucketDeFecha(fechaLiquidacion, granularidad);
-
-        const bajaAntesDeLiquidar = f.fecha_baja && f.fecha_baja < fechaLiquidacion;
-
-        if (bajaAntesDeLiquidar) {
-            // Solo se cobra la parte NO descomisionada, en su fecha de liquidación normal.
-            const dias = _diasEntre(fechaBase, f.fecha_baja);
-            const pct = _buscarPorcentajeDescomision(config, dias);
-            const montoNeto = (f.importe || 0) * (1 - pct / 100);
-            _aplicar([ingresosProyectados], bucketLiquidacion, montoNeto);
-            return;
-        }
-
-        // Se cobra íntegro en su fecha de liquidación (proyectado).
-        _aplicar([ingresosProyectados], bucketLiquidacion, f.importe || 0);
-
-        // Si se da de baja DESPUÉS de haberse liquidado, se corrige igual que una
-        // venta ya cobrada. Solo afecta a Ingresos Proyectados: esta venta nunca
-        // llegó a contarse como históricamente cobrada.
-        if (f.fecha_baja) {
-            const dias = _diasEntre(fechaBase, f.fecha_baja);
-            const pct = _buscarPorcentajeDescomision(config, dias);
-            if (pct > 0) {
-                const monto = (f.importe || 0) * (pct / 100);
-                const fechaAjuste = _calcularFechaLiquidacion(f.fecha_baja, config && config.liquidacion);
-                const bucketAjuste = _bucketDeFecha(fechaAjuste, granularidad);
-                _aplicar([ingresosProyectados], bucketAjuste, -monto);
-            }
-        }
+        if (f.es_pendiente) return;
+        const b = _bucketDeFecha(f.fecha, granularidad);
+        if (b) ingresosCobrados[b] = (ingresosCobrados[b] || 0) + (f.importe || 0);
     });
-
     detalleGastosGlobal.forEach(f => {
         const b = _bucketDeFecha(f.fecha, granularidad);
         if (b) gastosPorBucket[b] = (gastosPorBucket[b] || 0) + (f.importe || 0);
     });
 
     let cajaEfectivaAcum = cajaInicial;
-    let cajaProyectadaAcum = cajaInicial;
-    const ingresosCobradosArr = [], gastosArr = [], cajaEfectivaArr = [], ingresosProyectadosArr = [], cajaProyectadaArr = [];
+    const ingresosCobradosArr = [], gastosArr = [], cajaEfectivaArr = [];
+    const ingresosProyectadosArr = [], cajaProyectadaArr = [];
 
     buckets.forEach(b => {
         const ingC = ingresosCobrados[b] || 0;
-        const ingP = ingresosProyectados[b] || 0;
         const gas = gastosPorBucket[b] || 0;
         ingresosCobradosArr.push(ingC);
         gastosArr.push(gas);
-        ingresosProyectadosArr.push(ingP);
         cajaEfectivaAcum += ingC - gas;
-        cajaProyectadaAcum += ingP - gas;
         cajaEfectivaArr.push(cajaEfectivaAcum);
-        cajaProyectadaArr.push(cajaProyectadaAcum);
+        ingresosProyectadosArr.push(null);
+        cajaProyectadaArr.push(null);
     });
+
+    let bajasProyectadas = 0;
+    let ventasPorCobrar = 0;
+    const mesActual = (granularidad === 'mensual' && buckets.length > 0) ? buckets[buckets.length - 1] : null;
+
+    if (mesActual) {
+        const idxMesActual = buckets.length - 1;
+        let proyectado = ingresosCobradosArr[idxMesActual];
+
+        detalleGlobal.forEach(f => {
+            const config = _buscarConfigComercializadora(comercializadorasActual, f);
+            const fechaBase = f.fecha_activacion || f.fecha;
+            const mesBaja = f.fecha_baja ? f.fecha_baja.slice(0, 7) : null;
+            const dias = (fechaBase && f.fecha_baja) ? _diasEntre(fechaBase, f.fecha_baja) : null;
+            const pct = dias != null ? _buscarPorcentajeDescomision(config, dias) : 0;
+
+            if (!f.es_pendiente) {
+                // Ya cobrada: su importe queda intacto en el mes en que se cobró (cerrado).
+                // Si tiene baja, la descomisión afecta al mes actual, no a su mes de cobro.
+                if (mesBaja && pct > 0) {
+                    const monto = (f.importe || 0) * (pct / 100);
+                    if (mesBaja < mesActual) {
+                        proyectado -= monto; // baja de un mes ya cerrado: se resta del proyectado actual
+                    } else if (mesBaja === mesActual) {
+                        bajasProyectadas += monto; // baja de este mes: solo se previsualiza
+                    }
+                }
+                return;
+            }
+
+            // Pendiente
+            const mesVenta = fechaBase ? fechaBase.slice(0, 7) : null;
+            if (!mesVenta || mesVenta >= mesActual) {
+                // Pendiente de ESTE mes: aún no se refleja (se reflejará el mes que viene).
+                // Se previsualiza en "Ventas por Cobrar"; si además se da de baja este mismo
+                // mes, esa parte se previsualiza aparte en "Bajas Proyectadas".
+                if (mesVenta === mesActual) {
+                    ventasPorCobrar += (f.importe || 0);
+                    if (mesBaja === mesActual && pct > 0) {
+                        bajasProyectadas += (f.importe || 0) * (pct / 100);
+                    }
+                }
+                return;
+            }
+
+            // Pendiente de un mes ANTERIOR: se refleja en el mes actual.
+            if (mesBaja && mesBaja < mesActual) {
+                // También se dio de baja en un mes ya cerrado: se refleja ya neta de descomisión.
+                proyectado += (f.importe || 0) * (1 - pct / 100);
+            } else if (mesBaja === mesActual) {
+                // Se dio de baja este mes: se refleja íntegra + se previsualiza la baja.
+                proyectado += (f.importe || 0);
+                if (pct > 0) bajasProyectadas += (f.importe || 0) * (pct / 100);
+            } else {
+                proyectado += (f.importe || 0);
+            }
+        });
+
+        ingresosProyectadosArr[idxMesActual] = proyectado;
+        const cajaAlCierreMesAnterior = idxMesActual > 0 ? cajaEfectivaArr[idxMesActual - 1] : cajaInicial;
+        cajaProyectadaArr[idxMesActual] = cajaAlCierreMesAnterior + proyectado - gastosArr[idxMesActual];
+    }
 
     return {
         buckets,
@@ -836,28 +801,35 @@ function calcularSeriesCombinado(granularidad) {
         cajaEfectiva: cajaEfectivaArr,
         ingresosProyectados: ingresosProyectadosArr,
         cajaProyectada: cajaProyectadaArr,
-        ajustesFueraDeRango
+        bajasProyectadas,
+        ventasPorCobrar,
+        mesActual
     };
 }
 
-function renderMensajeVentasPorCobrar(ajustesFueraDeRango) {
+const NOMBRES_MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+function renderMensajeVentasPorCobrar(bajasProyectadas, ventasPorCobrar, mesActual) {
     const el = document.getElementById('mensajeVentasPorCobrar');
     if (!el) return;
-    const meses = Object.keys(ajustesFueraDeRango || {}).sort();
 
-    if (!proyectadoActivo || meses.length === 0) {
+    if (!proyectadoActivo || !mesActual || (!bajasProyectadas && !ventasPorCobrar)) {
         el.style.display = 'none';
         el.innerHTML = '';
         return;
     }
 
-    const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    const filas = meses.map(m => {
-        const [y, mm] = m.split('-').map(Number);
-        const monto = ajustesFueraDeRango[m];
-        const claseMonto = monto < 0 ? ' monto-negativo' : '';
-        return `<div class="fila-mes-cobrar"><span>${nombresMes[mm - 1]} ${y}</span><strong class="${claseMonto}">${monto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>`;
-    }).join('');
+    const [, mm] = mesActual.split('-').map(Number);
+    const nombreMes = NOMBRES_MES[mm - 1];
+    const fmt = v => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    let filas = '';
+    if (ventasPorCobrar) {
+        filas += `<div class="fila-mes-cobrar"><span>Ventas pendientes de ${nombreMes} (se sumarán el mes siguiente)</span><strong>+${fmt(ventasPorCobrar)} €</strong></div>`;
+    }
+    if (bajasProyectadas) {
+        filas += `<div class="fila-mes-cobrar"><span>Bajas de ${nombreMes} (se restarán el mes siguiente)</span><strong class="monto-negativo">-${fmt(bajasProyectadas)} €</strong></div>`;
+    }
 
     el.innerHTML = `<strong class="titulo-ventas-cobrar">Ventas por Cobrar / Correcciones</strong>${filas}`;
     el.style.display = 'block';
@@ -879,7 +851,7 @@ function renderGraficoCombinado() {
     const titulo = document.getElementById('tituloChartCombinado');
     if (titulo) titulo.textContent = esDiario ? 'Ingresos, Gastos y Evolución de Caja (diario)' : 'Ingresos, Gastos y Evolución de Caja';
 
-    renderMensajeVentasPorCobrar(datos.ajustesFueraDeRango);
+    renderMensajeVentasPorCobrar(datos.bajasProyectadas, datos.ventasPorCobrar, datos.mesActual);
 
     if (!datos.buckets.length) {
         el.innerHTML = '<p style="padding:20px;color:#6b7280;">Sin datos.</p>';
@@ -891,9 +863,10 @@ function renderGraficoCombinado() {
         { name: 'Gastos', type: 'column', data: datos.gastos },
         { name: 'Caja Efectiva', type: 'line', data: datos.cajaEfectiva }
     ];
-    if (proyectadoActivo) {
-        series.push({ name: 'Ingresos Proyectados', type: 'line', data: datos.ingresosProyectados });
-        series.push({ name: 'Caja Proyectada', type: 'line', data: datos.cajaProyectada });
+    // La Proyección solo existe a nivel mensual (datos.mesActual es null en vista diaria).
+    if (proyectadoActivo && datos.mesActual) {
+        series.push({ name: 'Ingresos Proyectados (mes actual)', type: 'line', data: datos.ingresosProyectados });
+        series.push({ name: 'Caja Proyectada (mes actual)', type: 'line', data: datos.cajaProyectada });
     }
 
     const fmtMoney = val => (val != null ? val.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + '€' : '');
@@ -1093,6 +1066,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 grupo.querySelectorAll('.toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
                 if (target === 'combinado') {
                     granularidadCombinado = btn.dataset.modo;
+                    // La Proyección solo existe a nivel mensual: al pasar a Diario se
+                    // desactiva el toggle (no tiene un valor que mostrar ahí).
+                    const btnProyectado = document.getElementById('btnToggleProyectado');
+                    if (granularidadCombinado === 'diario') {
+                        proyectadoActivo = false;
+                        if (btnProyectado) { btnProyectado.classList.remove('active'); btnProyectado.disabled = true; }
+                    } else if (btnProyectado) {
+                        btnProyectado.disabled = false;
+                    }
                     renderGraficoCombinado();
                 } else if (target === 'crecimiento') {
                     granularidadCrecimiento = btn.dataset.modo;
