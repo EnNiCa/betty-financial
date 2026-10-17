@@ -647,17 +647,14 @@ function analizarEndeudamiento(valor, sector) {
         return { texto, clase };
     }
     
-    if (valor < 30) {
-        texto = `Con un ${valor.toFixed(1)}% de endeudamiento, la empresa muestra una estructura financiera muy conservadora. Existe margen para apalancarse si se identifican oportunidades de crecimiento rentables.`;
-        clase = 'positivo';
-    } else if (valor < 50) {
-        texto = `El nivel de endeudamiento del ${valor.toFixed(1)}% es moderado y saludable. La empresa mantiene un equilibrio adecuado entre recursos propios y ajenos.`;
+    if (valor < 50) {
+        texto = `Con un ${valor.toFixed(1)}% de endeudamiento, la empresa se financia principalmente con recursos propios, lo que indica un nivel de endeudamiento bajo.`;
         clase = 'positivo';
     } else if (valor < 70) {
-        texto = `Con un ${valor.toFixed(1)}% de endeudamiento, la empresa se encuentra en una zona de atención. Se recomienda monitorear la capacidad de generar flujos para atender la deuda.`;
+        texto = `El nivel de endeudamiento del ${valor.toFixed(1)}% es moderado. Se recomienda monitorear la capacidad de generar flujos para atender la deuda.`;
         clase = 'warning';
     } else {
-        texto = `El endeudamiento del ${valor.toFixed(1)}% es elevado. Es crítico mejorar la rentabilidad y considerar reducir deuda o aumentar fondos propios para mejorar la solvencia.`;
+        texto = `El endeudamiento del ${valor.toFixed(1)}% es alto. Es crítico mejorar la rentabilidad y considerar reducir deuda o aumentar fondos propios para mejorar la solvencia.`;
         clase = 'negativo';
     }
     
@@ -756,14 +753,16 @@ function analizarMargenes(ebitda, bait, resultado, sector) {
     
     // Análisis Resultado
     let textoResultado = '';
-    if (resultado < 0) {
-        textoResultado = `Resultado/Ventas negativo (${resultado.toFixed(2)}%) indica pérdidas.`;
+    if (resultado < 3) {
+        textoResultado = `Resultado/Ventas del ${resultado.toFixed(2)}% es muy ajustado${resultado < 0 ? ' (pérdidas)' : ''}, revisar costes financieros.`;
         clase = 'negativo';
-    } else if (resultado < 5) {
-        textoResultado = `Resultado/Ventas del ${resultado.toFixed(2)}% es bajo, revisar costes financieros.`;
+    } else if (resultado < 8) {
+        textoResultado = `Resultado/Ventas del ${resultado.toFixed(2)}% es aceptable.`;
         if (clase === 'positivo') clase = 'warning';
+    } else if (resultado < 15) {
+        textoResultado = `Resultado/Ventas del ${resultado.toFixed(2)}% es un buen margen neto.`;
     } else {
-        textoResultado = `Resultado/Ventas del ${resultado.toFixed(2)}% es saludable.`;
+        textoResultado = `Resultado/Ventas del ${resultado.toFixed(2)}% es un margen neto excelente.`;
     }
     
     texto = `${textoEBITDA} ${textoBait} ${textoResultado}`;

@@ -370,20 +370,20 @@ function agregarAnalisisGraficos(pilares) {
         let clase = 'info';
         let texto = `<strong>Crecimiento mensual (MoM):</strong> ${momGrowth > 0 ? '+' : ''}${momGrowth.toFixed(2)}%. `;
         
-        if (momGrowth > 20) {
-            texto += `🚀 Crecimiento excepcional. Asegura que la infraestructura escale con la demanda.`;
+        if (momGrowth > 30) {
+            texto += `🚀 Crecimiento explosivo. Asegura que la infraestructura escale con la demanda.`;
             clase = 'positive';
-        } else if (momGrowth > 10) {
-            texto += `Crecimiento sólido y sostenible. Enfócate en optimizar conversión y retención.`;
+        } else if (momGrowth > 15) {
+            texto += `Alto crecimiento. Enfócate en optimizar conversión y retención.`;
+            clase = 'positive';
+        } else if (momGrowth > 5) {
+            texto += `Crecimiento moderado. Explora oportunidades para acelerar (nuevos canales, productos, mercados).`;
             clase = 'positive';
         } else if (momGrowth > 0) {
-            texto += `Crecimiento positivo. Explora oportunidades para acelerar (nuevos canales, productos, mercados).`;
-            clase = 'positive';
-        } else if (momGrowth === 0) {
-            texto += `⚠️ Estancamiento. Revisa estrategia de adquisición y propuesta de valor.`;
+            texto += `Crecimiento lento. Revisa estrategia de adquisición y propuesta de valor.`;
             clase = 'warning';
         } else {
-            texto += `🚨 Decrecimiento. Análisis urgente de causas: competencia, mercado, producto o ejecución.`;
+            texto += `🚨 Decrecimiento (alarma roja). Análisis urgente de causas: competencia, mercado, producto o ejecución.`;
             clase = 'negative';
         }
         
@@ -490,9 +490,9 @@ function generarAlertas(pilares, umbrales) {
         });
     }
     
-    // Alerta de Margen de Contribución
+    // Alerta de Margen de Contribución: <= 20% bajo, > 20% saludable (banda fijada por el CEO)
     const margen = pilares.eficiencia.margen_contribucion;
-    if (margen < umbrales.margen_contribucion.bajo) {
+    if (margen <= umbrales.margen_contribucion.bajo) {
         alertas.push({
             tipo: 'warning',
             titulo: '⚠️ Margen de Contribución Bajo',
@@ -500,13 +500,19 @@ function generarAlertas(pilares, umbrales) {
         });
     }
     
-    // Alerta de Churn Rate
+    // Alerta de Churn Rate (mismos cortes que el Glosario: <3% excelente, 3-10% a vigilar, >10% crítico)
     const churn = pilares.eficiencia.churn_rate;
-    if (churn > 5) {
+    if (churn > 10) {
+        alertas.push({
+            tipo: 'danger',
+            titulo: '🚨 Churn Rate Crítico',
+            texto: `Churn Rate de ${churn.toFixed(2)}% es crítico. Revisa producto y experiencia de cliente.`
+        });
+    } else if (churn > 3) {
         alertas.push({
             tipo: 'warning',
-            titulo: '⚠️ Churn Rate Elevado',
-            texto: `Churn Rate de ${churn.toFixed(2)}% es alto. Enfócate en retención de clientes.`
+            titulo: '⚠️ Churn Rate a Vigilar',
+            texto: `Churn Rate de ${churn.toFixed(2)}% está en zona a vigilar. Enfócate en retención de clientes.`
         });
     }
     

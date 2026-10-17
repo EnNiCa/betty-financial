@@ -77,17 +77,26 @@ COMERCIALIZADORAS_DEFAULT = {
 # ============================================================================
 
 UMBRALES_SECTORES = {
+    # Único sector alcanzable: el selector de sector se eliminó de Ratios y de Pilares, así que
+    # el backend siempre recibe sector='tecnologia'. Estos umbrales son ahora idénticos a las
+    # bandas publicadas en el Glosario de Betty (templates/glosario.html y glosario_pilares.html),
+    # para que la narrativa automática ("Análisis y Recomendaciones" / alertas de 4 Pilares) nunca
+    # contradiga lo que el Glosario dice sobre el mismo indicador.
     'tecnologia': {
         'nombre': 'Tecnología',
-        'roe': {'bajo': 15, 'alto': 25},
-        'roa': {'bajo': 8, 'alto': 15},
-        'endeudamiento': {'bajo': 30, 'alto': 50},
-        'solvencia_total': {'bajo': 2.0, 'alto': 3.5},
-        'solvencia_corriente': {'bajo': 1.5, 'alto': 2.5},
-        'ebitda_ventas': {'bajo': 20, 'alto': 35},
-        'ratio_madurez': {'bajo': 20, 'alto': 40},
+        'roe': {'bajo': 10, 'alto': 15},
+        'roa': {'bajo': 5, 'alto': 10},
+        'endeudamiento': {'bajo': 50, 'alto': 70},
+        'solvencia_total': {'bajo': 1, 'alto': 1.5},
+        'solvencia_corriente': {'bajo': 1, 'alto': 1.5},
+        'ebitda_ventas': {'bajo': 10, 'alto': 20},
+        'ratio_madurez': {'bajo': 30, 'alto': 60},
         'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
-        'margen_contribucion': {'bajo': 70, 'alto': 85},
+        # Banda del Margen de Contribución fijada directamente por el CEO de la empresa (no procede
+        # del Glosario ni de UMBRALES_SECTORES genérico): <= 20% bajo, > 20% saludable. Al ser un
+        # corte único (no bajo/alto como el resto), se usa el mismo valor en ambos campos; la alerta
+        # de pilares.js compara con "<=", no con "<".
+        'margen_contribucion': {'bajo': 20, 'alto': 20},
     },
     'retail': {
         'nombre': 'Retail',
