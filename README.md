@@ -182,10 +182,9 @@ http://localhost:5002
 4. **ROA** = EBIT / Total Activo × 100
 5. **ROE** = Resultado Ejercicio / FP × 100
 6. **Solvencia Corriente** = Activo C / Pasivo C
-7. **Disponibilidad Inmediata** = Tesorería / Pasivo C
-8. **EBITDA/Ventas** = EBITDA / Ventas × 100
-9. **BAIT/Ventas** = EBIT / Ventas × 100
-10. **Resultado/Ventas** = Resultado Ejercicio / Ventas × 100
+7. **EBITDA/Ventas** = EBITDA / Ventas × 100
+8. **BAIT/Ventas** = EBIT / Ventas × 100
+9. **Resultado/Ventas** = Resultado Ejercicio / Ventas × 100
 
 ---
 

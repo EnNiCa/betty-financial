@@ -84,12 +84,6 @@ def calcular_ratios_tradicionales(df, nombres_personalizados=None):
                 if solvencia_corriente is not None:
                     ratios_año['solvencia_corriente'] = round(solvencia_corriente, 2)
             
-            # 8. DISPONIBILIDAD INMEDIATA
-            if all(x is not None for x in [tesoreria, pasivo_c]):
-                disponibilidad = safe_divide(tesoreria, pasivo_c)
-                if disponibilidad is not None:
-                    ratios_año['disponibilidad_inmediata'] = round(disponibilidad, 2)
-            
             # 9. EBITDA/VENTAS
             if all(x is not None for x in [ebitda, cifra_ventas]):
                 ebitda_ventas = safe_divide(ebitda, cifra_ventas)
