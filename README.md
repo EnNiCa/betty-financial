@@ -179,14 +179,13 @@ http://localhost:5002
 1. **Nivel de Endeudamiento** = (Pasivo NC + Pasivo C) / (FP + Pasivo NC + Pasivo C) × 100
 2. **Solvencia Total** = Total Activo / (Pasivo NC + Pasivo C)
 3. **Apalancamiento Financiero** = Fondos Ajenos / Fondos Propios
-4. **Ratio de Madurez** = Activo NC / Total Activo × 100
-5. **ROA** = EBIT / Total Activo × 100
-6. **ROE** = Resultado Ejercicio / FP × 100
-7. **Solvencia Corriente** = Activo C / Pasivo C
-8. **Disponibilidad Inmediata** = Tesorería / Pasivo C
-9. **EBITDA/Ventas** = EBITDA / Ventas × 100
-10. **BAIT/Ventas** = EBIT / Ventas × 100
-11. **Resultado/Ventas** = Resultado Ejercicio / Ventas × 100
+4. **ROA** = EBIT / Total Activo × 100
+5. **ROE** = Resultado Ejercicio / FP × 100
+6. **Solvencia Corriente** = Activo C / Pasivo C
+7. **Disponibilidad Inmediata** = Tesorería / Pasivo C
+8. **EBITDA/Ventas** = EBITDA / Ventas × 100
+9. **BAIT/Ventas** = EBIT / Ventas × 100
+10. **Resultado/Ventas** = Resultado Ejercicio / Ventas × 100
 
 ---
 

@@ -66,12 +66,6 @@ def calcular_ratios_tradicionales(df, nombres_personalizados=None):
                 if solvencia_total is not None:
                     ratios_año['solvencia_total'] = round(solvencia_total, 2)
             
-            # 4. RATIO DE MADUREZ
-            if all(x is not None for x in [activo_nc, total_activo]):
-                ratio_madurez = safe_divide(activo_nc, total_activo)
-                if ratio_madurez is not None:
-                    ratios_año['ratio_madurez'] = round(ratio_madurez * 100, 2)
-            
             # 5. ROA
             if all(x is not None for x in [ebit, total_activo]):
                 roa = safe_divide(ebit, total_activo)

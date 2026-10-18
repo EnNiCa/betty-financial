@@ -90,7 +90,6 @@ UMBRALES_SECTORES = {
         'solvencia_total': {'bajo': 1, 'alto': 1.5},
         'solvencia_corriente': {'bajo': 1, 'alto': 1.5},
         'ebitda_ventas': {'bajo': 10, 'alto': 20},
-        'ratio_madurez': {'bajo': 30, 'alto': 60},
         'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         # Banda del Margen de Contribución fijada directamente por el CEO de la empresa (no procede
         # del Glosario ni de UMBRALES_SECTORES genérico): <= 20% bajo, > 20% saludable. Al ser un
@@ -106,7 +105,6 @@ UMBRALES_SECTORES = {
         'solvencia_total': {'bajo': 1.5, 'alto': 2.5},
         'solvencia_corriente': {'bajo': 1.2, 'alto': 2.0},
         'ebitda_ventas': {'bajo': 6, 'alto': 12},
-        'ratio_madurez': {'bajo': 30, 'alto': 50},
         'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         'margen_contribucion': {'bajo': 35, 'alto': 50},
     },
@@ -118,7 +116,6 @@ UMBRALES_SECTORES = {
         'solvencia_total': {'bajo': 1.8, 'alto': 3.0},
         'solvencia_corriente': {'bajo': 1.3, 'alto': 2.2},
         'ebitda_ventas': {'bajo': 12, 'alto': 22},
-        'ratio_madurez': {'bajo': 15, 'alto': 35},
         'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         'margen_contribucion': {'bajo': 60, 'alto': 75},
     },
@@ -130,7 +127,6 @@ UMBRALES_SECTORES = {
         'solvencia_total': {'bajo': 1.5, 'alto': 2.5},
         'solvencia_corriente': {'bajo': 1.0, 'alto': 2.0},
         'ebitda_ventas': {'bajo': 10, 'alto': 20},
-        'ratio_madurez': {'bajo': 30, 'alto': 50},
         'runway_meses': {'bajo': 3, 'alto': 9},  # < 3 crítico, 3-9 zona de riesgo, >= 9 zona cómoda (Graham, 2014, "The Fatal Pinch")
         'margen_contribucion': {'bajo': 50, 'alto': 70},
     }
