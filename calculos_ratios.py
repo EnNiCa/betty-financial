@@ -59,13 +59,6 @@ def calcular_ratios_tradicionales(df, nombres_personalizados=None):
                 if nivel_endeudamiento is not None:
                     ratios_año['nivel_endeudamiento'] = round(nivel_endeudamiento * 100, 2)
             
-            # 2. RATIO ENDEUDAMIENTO TOTAL
-            if all(x is not None for x in [pasivo_nc, pasivo_c, fondos_propios]):
-                total_pasivo = pasivo_nc + pasivo_c
-                ratio_endeud_total = safe_divide(total_pasivo, fondos_propios)
-                if ratio_endeud_total is not None:
-                    ratios_año['ratio_endeudamiento_total'] = round(ratio_endeud_total * 100, 2)
-            
             # 3. SOLVENCIA TOTAL
             if all(x is not None for x in [total_activo, pasivo_nc, pasivo_c]):
                 total_pasivo = pasivo_nc + pasivo_c

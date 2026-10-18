@@ -177,8 +177,8 @@ http://localhost:5002
 ## 📊 Ratios Calculados (Modo Tradicional)
 
 1. **Nivel de Endeudamiento** = (Pasivo NC + Pasivo C) / (FP + Pasivo NC + Pasivo C) × 100
-2. **Ratio Endeudamiento Total** = (Pasivo NC + Pasivo C) / FP × 100
-3. **Solvencia Total** = Total Activo / (Pasivo NC + Pasivo C)
+2. **Solvencia Total** = Total Activo / (Pasivo NC + Pasivo C)
+3. **Apalancamiento Financiero** = Fondos Ajenos / Fondos Propios
 4. **Ratio de Madurez** = Activo NC / Total Activo × 100
 5. **ROA** = EBIT / Total Activo × 100
 6. **ROE** = Resultado Ejercicio / FP × 100
