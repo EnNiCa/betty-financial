@@ -76,27 +76,21 @@ http://localhost:5002
 
 **Paso 1:** Desde la página principal, click en "Acceder a Ratios"
 
-**Paso 2:** Selecciona el sector de tu empresa:
-- 💻 Tecnología
-- 🛒 Retail
-- 🤝 Servicios
-- 📊 Otros
-
-**Paso 3 (Opcional):** Click en "⚙️ Configurar Nombres"
+**Paso 2 (Opcional):** Click en "⚙️ Configurar Nombres"
 - Personaliza los nombres que la app buscará en tu Excel
 - Ejemplo: Cambiar "Activo no Corriente" por "ANC"
 - Guardar configuración
 
-**Paso 4:** Sube tu Excel con Balance y Cuenta de Resultados
+**Paso 3:** Sube tu Excel con Balance y Cuenta de Resultados
 - La app reconoce automáticamente los datos por nombre
 - No importa el orden de las filas
 - Debe tener al menos: Activos, Pasivos, Fondos Propios, Ventas, EBIT, EBITDA, Resultado
 
-**Paso 5:** Ver Dashboard
+**Paso 4:** Ver Dashboard
 - 6 KPIs principales
 - 6 gráficos interactivos con colores diferenciados
 - Tabla completa de ratios
-- Análisis ajustado por sector
+- Análisis con recomendaciones
 
 ---
 
@@ -104,9 +98,7 @@ http://localhost:5002
 
 **Paso 1:** Desde la página principal, click en "Acceder a Pilares"
 
-**Paso 2:** Selecciona el sector
-
-**Paso 3:** Sube tu Excel con transacciones (Hoja2)
+**Paso 2:** Sube tu Excel con transacciones (Hoja2)
 
 **Columnas requeridas:**
 - Fecha

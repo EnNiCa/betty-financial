@@ -77,13 +77,12 @@ COMERCIALIZADORAS_DEFAULT = {
 # ============================================================================
 
 UMBRALES_SECTORES = {
-    # Único sector alcanzable: el selector de sector se eliminó de Ratios y de Pilares, así que
-    # el backend siempre recibe sector='tecnologia'. Estos umbrales son ahora idénticos a las
-    # bandas publicadas en el Glosario de Betty (templates/glosario.html y glosario_pilares.html),
-    # para que la narrativa automática ("Análisis y Recomendaciones" / alertas de 4 Pilares) nunca
-    # contradiga lo que el Glosario dice sobre el mismo indicador.
-    'tecnologia': {
-        'nombre': 'Tecnología',
+    # Único conjunto de umbrales alcanzable: el selector de sector se eliminó de Ratios y de
+    # Pilares, así que el backend siempre recibe sector='startup'. Estos umbrales son ahora
+    # idénticos a las bandas publicadas en el Glosario de Betty (templates/glosario.html y
+    # glosario_pilares.html), para que la narrativa automática ("Análisis y Recomendaciones" /
+    # alertas de 4 Pilares) nunca contradiga lo que el Glosario dice sobre el mismo indicador.
+    'startup': {
         'roe': {'bajo': 10, 'alto': 15},
         'roa': {'bajo': 5, 'alto': 10},
         'endeudamiento': {'bajo': 50, 'alto': 70},

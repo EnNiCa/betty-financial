@@ -62,10 +62,10 @@ function procesarArchivo(e) {
     const formData = new FormData();
     formData.append('file', file);
     
-    // Sector fijo en "tecnologia": el selector se quitó (los umbrales por sector
+    // Umbrales fijos de la startup: el selector de sector se quitó (los umbrales por sector
     // requerirían parametrizar datos de referencia para cada uno), y todos los cálculos
-    // y correcciones hechos hasta ahora se hicieron con este sector seleccionado.
-    const sector = 'tecnologia';
+    // y correcciones hechos hasta ahora se hicieron con este conjunto de umbrales.
+    const sector = 'startup';
     formData.append('sector', sector);
     
     loading.style.display = 'flex';

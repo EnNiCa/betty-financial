@@ -116,18 +116,10 @@ def analizar_ratios(ratios_calculados, sector='otros'):
     Genera análisis ajustado por sector
     """
     from app import UMBRALES_SECTORES
-    
+
     analisis = []
     umbrales = UMBRALES_SECTORES.get(sector, UMBRALES_SECTORES['otros'])
-    nombre_sector = umbrales['nombre']
-    
-    # Información del sector
-    analisis.append({
-        'tipo': 'positive',
-        'titulo': f'📊 Análisis para Sector: {nombre_sector}',
-        'descripcion': f'Los umbrales y recomendaciones están ajustados específicamente para empresas del sector {nombre_sector}.'
-    })
-    
+
     if not ratios_calculados:
         return analisis
     
@@ -143,20 +135,20 @@ def analizar_ratios(ratios_calculados, sector='otros'):
         if roe < roe_bajo:
             analisis.append({
                 'tipo': 'negative',
-                'titulo': '📉 ROE Bajo para el Sector',
-                'descripcion': f'El ROE es del {roe}%, por debajo del {roe_bajo}% esperado para {nombre_sector}.'
+                'titulo': '📉 ROE Bajo',
+                'descripcion': f'El ROE es del {roe}%, por debajo del {roe_bajo}% esperado.'
             })
         elif roe < roe_alto:
             analisis.append({
                 'tipo': 'warning',
                 'titulo': '📊 ROE Dentro del Rango',
-                'descripcion': f'El ROE es del {roe}%, dentro del rango típico ({roe_bajo}%-{roe_alto}%) para {nombre_sector}.'
+                'descripcion': f'El ROE es del {roe}%, dentro del rango típico ({roe_bajo}%-{roe_alto}%).'
             })
         else:
             analisis.append({
                 'tipo': 'positive',
-                'titulo': '📈 Excelente ROE para el Sector',
-                'descripcion': f'El ROE es del {roe}%, superando el {roe_alto}% típico de {nombre_sector}.'
+                'titulo': '📈 Excelente ROE',
+                'descripcion': f'El ROE es del {roe}%, superando el {roe_alto}% típico.'
             })
     
     # Análisis de ENDEUDAMIENTO
@@ -169,19 +161,19 @@ def analizar_ratios(ratios_calculados, sector='otros'):
             analisis.append({
                 'tipo': 'positive',
                 'titulo': '✅ Endeudamiento Conservador',
-                'descripcion': f'El nivel de endeudamiento es del {endeud}%, por debajo del {endeud_bajo}% típico de {nombre_sector}.'
+                'descripcion': f'El nivel de endeudamiento es del {endeud}%, por debajo del {endeud_bajo}% típico.'
             })
         elif endeud < endeud_alto:
             analisis.append({
                 'tipo': 'warning',
                 'titulo': '⚠️ Endeudamiento Moderado',
-                'descripcion': f'El nivel de endeudamiento es del {endeud}%, dentro del rango ({endeud_bajo}%-{endeud_alto}%) de {nombre_sector}.'
+                'descripcion': f'El nivel de endeudamiento es del {endeud}%, dentro del rango ({endeud_bajo}%-{endeud_alto}%).'
             })
         else:
             analisis.append({
                 'tipo': 'negative',
                 'titulo': '❌ Endeudamiento Alto',
-                'descripcion': f'El nivel de endeudamiento es del {endeud}%, superando el {endeud_alto}% típico de {nombre_sector}.'
+                'descripcion': f'El nivel de endeudamiento es del {endeud}%, superando el {endeud_alto}% típico.'
             })
     
     # Análisis de SOLVENCIA TOTAL
@@ -194,19 +186,19 @@ def analizar_ratios(ratios_calculados, sector='otros'):
             analisis.append({
                 'tipo': 'negative',
                 'titulo': '❌ Solvencia Baja',
-                'descripcion': f'La solvencia total es de {solvencia}, por debajo del {solv_bajo} esperado en {nombre_sector}.'
+                'descripcion': f'La solvencia total es de {solvencia}, por debajo del {solv_bajo} esperado.'
             })
         elif solvencia < solv_alto:
             analisis.append({
                 'tipo': 'warning',
                 'titulo': '⚠️ Solvencia Aceptable',
-                'descripcion': f'La solvencia total es de {solvencia}, dentro del rango ({solv_bajo}-{solv_alto}) de {nombre_sector}.'
+                'descripcion': f'La solvencia total es de {solvencia}, dentro del rango ({solv_bajo}-{solv_alto}).'
             })
         else:
             analisis.append({
                 'tipo': 'positive',
                 'titulo': '✅ Excelente Solvencia',
-                'descripcion': f'La solvencia total es de {solvencia}, superando el {solv_alto} típico de {nombre_sector}.'
+                'descripcion': f'La solvencia total es de {solvencia}, superando el {solv_alto} típico.'
             })
     
     # Análisis de EBITDA/VENTAS
@@ -219,19 +211,19 @@ def analizar_ratios(ratios_calculados, sector='otros'):
             analisis.append({
                 'tipo': 'warning',
                 'titulo': '⚠️ Margen Operativo Bajo',
-                'descripcion': f'El margen EBITDA es del {ebitda_v}%, por debajo del {ebitda_bajo}% típico de {nombre_sector}.'
+                'descripcion': f'El margen EBITDA es del {ebitda_v}%, por debajo del {ebitda_bajo}% típico.'
             })
         elif ebitda_v < ebitda_alto:
             analisis.append({
                 'tipo': 'positive',
                 'titulo': '📊 Margen Operativo Competitivo',
-                'descripcion': f'El margen EBITDA es del {ebitda_v}%, dentro del rango ({ebitda_bajo}%-{ebitda_alto}%) de {nombre_sector}.'
+                'descripcion': f'El margen EBITDA es del {ebitda_v}%, dentro del rango ({ebitda_bajo}%-{ebitda_alto}%).'
             })
         else:
             analisis.append({
                 'tipo': 'positive',
                 'titulo': '✅ Margen Operativo Superior',
-                'descripcion': f'El margen EBITDA es del {ebitda_v}%, superando el {ebitda_alto}% típico de {nombre_sector}.'
+                'descripcion': f'El margen EBITDA es del {ebitda_v}%, superando el {ebitda_alto}% típico.'
             })
     
     return analisis
