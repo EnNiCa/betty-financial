@@ -16,7 +16,7 @@ def safe_divide(numerator, denominator):
 
 def calcular_ratios_tradicionales(df, nombres_personalizados=None):
     """
-    Calcula los 11 ratios financieros tradicionales
+    Calcula los 9 ratios financieros tradicionales
     """
     from app import obtener_años_y_offset, extraer_datos_automaticamente
     

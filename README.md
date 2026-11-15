@@ -29,7 +29,7 @@ Todas las funcionalidades solicitadas han sido implementadas:
 ```
 analisis_financiero_app_v2/
 ├── app.py                      # Backend Flask completo
-├── calculos_ratios.py          # Cálculos de 11 ratios tradicionales
+├── calculos_ratios.py          # Cálculos de 9 ratios tradicionales
 ├── calculos_pilares.py         # Cálculos de 4 pilares
 ├── requirements.txt            # Dependencias
 ├── templates/
@@ -328,7 +328,6 @@ La aplicación está **100% funcional** con todas las características solicitad
 - ✅ Nombres parametrizables
 - ✅ Colores diferenciados
 - ✅ 4 Pilares completos
-- ✅ Análisis por sector
 - ✅ Gráficos interactivos
 - ✅ 2 modos de análisis
 

@@ -14,7 +14,7 @@ Debido a la complejidad y extensión del proyecto, he creado la **estructura bas
    - ✅ Rutas `/upload-ratios` y `/upload-pilares`
 
 2. **Módulos de Cálculo**
-   - ✅ `calculos_ratios.py` - 11 ratios tradicionales completos
+   - ✅ `calculos_ratios.py` - 9 ratios tradicionales completos
    - ✅ `calculos_pilares.py` - 4 pilares completos:
      - Cash Management (Runway, Burn Rate, Caja)
      - Eficiencia (Margen Contribución, ROI por Canal)
